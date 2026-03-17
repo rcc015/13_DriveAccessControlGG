@@ -1,0 +1,219 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AppRoleName {
+  SUPER_ADMIN
+  ACCESS_ADMIN
+  QMS_ACCESS_ADMIN
+  STRATEGIC_ACCESS_ADMIN
+  OPERATIONAL_ACCESS_ADMIN
+  SUPPORT_ACCESS_ADMIN
+  REVIEWER
+  READ_ONLY_AUDITOR
+}
+
+enum AccessRequestStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  EXPIRED
+  REVOKED
+}
+
+enum ReportType {
+  GROUP_MEMBERSHIP_SNAPSHOT
+  QUARTERLY_ACCESS_REVIEW
+  RESTRICTED_ACCESS_EXCEPTIONS
+  PERMISSION_MATRIX
+  ACCESS_CHANGE_LOG
+}
+
+enum MembershipSource {
+  APP_MANAGED
+  IMPORTED
+}
+
+model User {
+  id             String            @id @default(cuid())
+  email          String            @unique
+  displayName    String
+  isActive       Boolean           @default(true)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  roleAssignments UserRole[]
+  memberships    GroupMembership[]
+  accessRequests AccessRequest[]
+}
+
+model Role {
+  id          String            @id @default(cuid())
+  name        AppRoleName       @unique
+  description String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  users       UserRole[]
+  mappings    GroupMapping[]
+}
+
+model UserRole {
+  id         String   @id @default(cuid())
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+  assignedBy String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+}
+
+model SharedDrive {
+  id             String            @id @default(cuid())
+  googleDriveId  String?           @unique
+  name           String            @unique
+  description    String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  mappings       GroupMapping[]
+  folders        RestrictedFolder[]
+  folderOwners   FolderOwnership[]
+}
+
+model GroupMapping {
+  id                 String            @id @default(cuid())
+  roleId             String
+  sharedDriveId      String
+  restrictedFolderId String?
+  groupEmail         String
+  accessLevel        String
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  role               Role              @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  sharedDrive        SharedDrive       @relation(fields: [sharedDriveId], references: [id], onDelete: Restrict)
+  restrictedFolder   RestrictedFolder? @relation(fields: [restrictedFolderId], references: [id], onDelete: SetNull)
+  memberships        GroupMembership[]
+
+  @@unique([roleId, sharedDriveId, restrictedFolderId, groupEmail])
+  @@index([groupEmail])
+}
+
+model GroupMembership {
+  id             String           @id @default(cuid())
+  userId         String
+  groupMappingId String
+  source         MembershipSource @default(APP_MANAGED)
+  grantedAt      DateTime         @default(now())
+  revokedAt      DateTime?
+  revokedReason  String?
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupMapping   GroupMapping     @relation(fields: [groupMappingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupMappingId])
+}
+
+model RestrictedFolder {
+  id            String          @id @default(cuid())
+  sharedDriveId String
+  name          String
+  path          String          @unique
+  parentPath    String?
+  isRestricted  Boolean         @default(true)
+  googleFolderId String?        @unique
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  sharedDrive   SharedDrive     @relation(fields: [sharedDriveId], references: [id], onDelete: Cascade)
+  mappings      GroupMapping[]
+  accessRequests AccessRequest[]
+}
+
+model AccessRequest {
+  id                 String              @id @default(cuid())
+  userId             String
+  restrictedFolderId String?
+  requestedByEmail   String
+  approverEmail      String?
+  approvalReference  String?
+  justification      String
+  status             AccessRequestStatus @default(REQUESTED)
+  startDate          DateTime?
+  endDate            DateTime?
+  decidedAt          DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restrictedFolder   RestrictedFolder?   @relation(fields: [restrictedFolderId], references: [id], onDelete: SetNull)
+}
+
+model AuditLog {
+  id                String   @id @default(cuid())
+  happenedAt        DateTime @default(now())
+  actorEmail        String
+  actionType        String
+  targetUserEmail   String?
+  targetGroupEmail  String?
+  targetDriveName   String?
+  targetFolderPath  String?
+  approvalReference String?
+  result            String
+  notes             String?
+  metadataJson      Json?
+}
+
+model AccessReview {
+  id              String             @id @default(cuid())
+  name            String
+  quarterLabel    String
+  startedAt       DateTime           @default(now())
+  dueAt           DateTime?
+  completedAt     DateTime?
+  reviewerEmail   String
+  status          String             @default("OPEN")
+  items           AccessReviewItem[]
+}
+
+model AccessReviewItem {
+  id                  String       @id @default(cuid())
+  accessReviewId      String
+  groupMappingId      String?
+  groupEmail          String?
+  memberName          String?
+  memberEmail         String
+  roleLabel           String?
+  accessJustified     Boolean?
+  actionRequired      String?
+  decision            String?
+  decisionNotes       String?
+  reviewedAt          DateTime?
+  reviewedByEmail     String?
+  accessReview        AccessReview @relation(fields: [accessReviewId], references: [id], onDelete: Cascade)
+}
+
+model GeneratedReport {
+  id                String     @id @default(cuid())
+  reportType        ReportType
+  fileName          String
+  generatedAt       DateTime   @default(now())
+  generatedByEmail  String
+  googleDriveFileId String     @unique
+  googleDriveUrl    String
+}
+
+model FolderOwnership {
+  id                  String      @id @default(cuid())
+  sharedDriveId       String
+  topFolder           String
+  functionalOwner     String
+  technicalOwner      String
+  responsibleGroupEmail String
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  sharedDrive         SharedDrive @relation(fields: [sharedDriveId], references: [id], onDelete: Cascade)
+
+  @@unique([sharedDriveId, topFolder])
+}
