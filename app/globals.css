@@ -386,6 +386,16 @@ th {
   font: inherit;
 }
 
+.search-bar select {
+  min-width: 190px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-strong);
+  color: var(--text);
+  font: inherit;
+}
+
 .field input,
 .field select,
 .field textarea {
@@ -567,6 +577,12 @@ th {
   line-height: 1.6;
 }
 
+.matrix-note {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
 .cell-drive {
   word-break: break-word;
 }
@@ -614,6 +630,165 @@ ul.clean li {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+}
+
+.matrix-wrap {
+  overflow-x: auto;
+}
+
+.matrix-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-top: 6px;
+}
+
+.matrix-table th,
+.matrix-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  text-align: left;
+}
+
+.matrix-table th {
+  color: var(--text);
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.matrix-family-row td {
+  padding: 12px 12px 8px;
+  background: rgba(17, 17, 17, 0.02);
+  border-bottom: 0;
+}
+
+.matrix-family {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(17, 17, 17, 0.04);
+  color: var(--text);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.matrix-family.qms {
+  background: rgba(240, 179, 35, 0.12);
+  border-color: rgba(240, 179, 35, 0.26);
+  color: #7c5b19;
+}
+
+.matrix-family.strategic {
+  background: rgba(84, 112, 255, 0.1);
+  border-color: rgba(84, 112, 255, 0.22);
+  color: #2b43a8;
+}
+
+.matrix-family.operational {
+  background: rgba(25, 130, 92, 0.1);
+  border-color: rgba(25, 130, 92, 0.18);
+  color: #26654b;
+}
+
+.matrix-family.support {
+  background: rgba(213, 107, 31, 0.1);
+  border-color: rgba(213, 107, 31, 0.22);
+  color: #8a4516;
+}
+
+.matrix-family.oversight {
+  background: rgba(160, 58, 45, 0.1);
+  border-color: rgba(160, 58, 45, 0.2);
+  color: #8d352b;
+}
+
+.matrix-family.platform,
+.matrix-family.cross {
+  background: rgba(95, 95, 88, 0.08);
+  border-color: rgba(95, 95, 88, 0.18);
+  color: #55554f;
+}
+
+.matrix-family.app {
+  background: rgba(17, 17, 17, 0.05);
+  border-color: rgba(17, 17, 17, 0.14);
+  color: #44443f;
+}
+
+.matrix-role {
+  min-width: 270px;
+}
+
+.matrix-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.access-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(17, 17, 17, 0.03);
+  color: var(--text);
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.access-chip-meta {
+  margin-top: 2px;
+  font-size: 0.68rem;
+  font-weight: 500;
+  opacity: 0.72;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.access-chip.manager {
+  color: #8a4516;
+  background: rgba(213, 107, 31, 0.14);
+  border-color: rgba(213, 107, 31, 0.24);
+}
+
+.access-chip.owner {
+  color: #7c5b19;
+  background: rgba(240, 179, 35, 0.14);
+  border-color: rgba(240, 179, 35, 0.28);
+}
+
+.access-chip.contributor {
+  color: #2b43a8;
+  background: rgba(84, 112, 255, 0.1);
+  border-color: rgba(84, 112, 255, 0.22);
+}
+
+.access-chip.viewer {
+  color: #55554f;
+  background: rgba(95, 95, 88, 0.08);
+  border-color: rgba(95, 95, 88, 0.18);
+}
+
+.access-chip.restricted {
+  color: #8d352b;
+  background: rgba(160, 58, 45, 0.1);
+  border-color: rgba(160, 58, 45, 0.2);
+}
+
+.access-none {
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 @media (max-width: 980px) {

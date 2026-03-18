@@ -1,5 +1,10 @@
 import { AccessDenied } from "@/components/dashboard/access-denied";
-import { assignUserRole, removeUserRole } from "@/app/(dashboard)/users/actions";
+import {
+  assignUserAccessRole,
+  assignUserRole,
+  removeUserAccessRole,
+  removeUserRole
+} from "@/app/(dashboard)/users/actions";
 import { adminAssignmentRoles, hasAnyRole } from "@/lib/auth/authorization";
 import { requireSession } from "@/lib/auth/session";
 import { env } from "@/lib/config/env";
@@ -29,7 +34,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
   const query = params.q?.trim() ?? "";
   const directory = getDirectoryProvider();
 
-  const [roles, groupMappings, users, assignments, activeMemberships] = await Promise.all([
+  const [roles, accessRoles, groupMappings, users, assignments, accessAssignments, activeMemberships] = await Promise.all([
     prisma.role.findMany({
       include: {
         mappings: {
@@ -43,6 +48,21 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
       },
       orderBy: { name: "asc" }
     }),
+    prisma.accessRole
+      .findMany({
+        include: {
+          mappings: {
+            where: {
+              restrictedFolderId: null
+            },
+            include: {
+              sharedDrive: true
+            }
+          }
+        },
+        orderBy: [{ department: "asc" }, { displayName: "asc" }]
+      })
+      .catch(() => []),
     prisma.groupMapping.findMany({
       include: {
         role: true,
@@ -59,6 +79,15 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
       },
       orderBy: [{ assignedAt: "desc" }]
     }),
+    prisma.userAccessRole
+      .findMany({
+        include: {
+          user: true,
+          accessRole: true
+        },
+        orderBy: [{ assignedAt: "desc" }]
+      })
+      .catch(() => []),
     prisma.groupMembership.findMany({
       where: {
         revokedAt: null
@@ -70,11 +99,18 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
             sharedDrive: true,
             restrictedFolder: true
           }
+        },
+        accessRoleMapping: {
+          include: {
+            accessRole: true,
+            sharedDrive: true,
+            restrictedFolder: true
+          }
         }
       },
       orderBy: [{ user: { email: "asc" } }, { grantedAt: "desc" }]
     })
-  ]).catch(() => [[], [], [], [], []] as const);
+  ]).catch(() => [[], [], [], [], [], [], []] as const);
 
   const roleLabels: Record<AppRoleName, string> = {
     SUPER_ADMIN: "Super Admin",
@@ -104,6 +140,21 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
   });
 
   const groupedMappings = groupMappings.slice(0, 8);
+  const accessRoleCatalog = accessRoles.map((role) => {
+    const mappedGroups = role.mappings.map((mapping) => mapping.groupEmail);
+    const drives = Array.from(new Set(role.mappings.map((mapping) => mapping.sharedDrive.name)));
+
+    return {
+      id: role.id,
+      code: role.code,
+      label: role.displayName,
+      department: role.department,
+      description: role.description,
+      restrictedAccessMode: role.restrictedAccessMode,
+      mappedGroups,
+      drives
+    };
+  });
   type ActiveMembership = (typeof activeMemberships)[number];
   const membershipsByUser = activeMemberships.reduce<
     Array<{
@@ -152,8 +203,8 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
           <strong>{roles.length}</strong>
         </article>
         <article className="panel stat-card">
-          <span>Active mappings</span>
-          <strong>{groupMappings.length}</strong>
+          <span>Access roles</span>
+          <strong>{accessRoles.length}</strong>
         </article>
       </section>
 
@@ -206,6 +257,58 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
         </form>
         <p className="card-note">
           Reviewer is app-only and does not grant Shared Drive access. Legacy `ACCESS_ADMIN` is hidden for new assignments.
+        </p>
+      </section>
+
+      <section className="panel">
+        <div className="section-head">
+          <div>
+            <h3>Assign business access role</h3>
+            <p className="muted">
+              This stores the company-facing access role separately from the administrative role that operates the app.
+            </p>
+          </div>
+          <span className="pill">Business role</span>
+        </div>
+        <form action={assignUserAccessRole} className="form-grid">
+          <label className="field">
+            <span>User email</span>
+            <input
+              type="email"
+              name="userEmail"
+              defaultValue={typeof users[0]?.primaryEmail === "string" ? users[0].primaryEmail : ""}
+              placeholder="user@company.com"
+              required
+            />
+          </label>
+          <label className="field">
+            <span>Display name</span>
+            <input
+              type="text"
+              name="displayName"
+              defaultValue={typeof users[0]?.name?.fullName === "string" ? users[0].name.fullName : ""}
+              placeholder="Full name"
+            />
+          </label>
+          <label className="field field-full">
+            <span>Access role</span>
+            <select name="accessRoleId" required defaultValue="">
+              <option value="" disabled>
+                Select business access role
+              </option>
+              {accessRoles.map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="form-actions">
+            <button type="submit">Assign access role</button>
+          </div>
+        </form>
+        <p className="card-note">
+          This first implementation stores the business-role catalog and assignment state in the app so we can separate policy from admin permissions cleanly.
         </p>
       </section>
 
@@ -265,6 +368,41 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
       <section className="panel">
         <div className="section-head">
           <div>
+            <h3>Business access role catalog</h3>
+            <p className="muted">This is the company-facing access vocabulary we are now storing separately.</p>
+          </div>
+          <span className="pill warn">Policy model</span>
+        </div>
+        <table className="table-tight">
+          <thead>
+            <tr>
+              <th>Access role</th>
+              <th>Department</th>
+              <th>Inherited drives</th>
+              <th>Mapped groups</th>
+              <th>Restricted mode</th>
+            </tr>
+          </thead>
+          <tbody>
+            {accessRoleCatalog.map((role) => (
+              <tr key={role.id}>
+                <td>
+                  <strong>{role.label}</strong>
+                  <div className="muted">{role.description}</div>
+                </td>
+                <td>{role.department}</td>
+                <td>{role.drives.length > 0 ? role.drives.join(", ") : "None"}</td>
+                <td>{role.mappedGroups.length > 0 ? role.mappedGroups.join(", ") : "None"}</td>
+                <td>{role.restrictedAccessMode.replaceAll("_", " ")}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="panel">
+        <div className="section-head">
+          <div>
             <h3>Role-to-drive coverage</h3>
             <p className="muted">Preview the exact Shared Drive blast radius before assigning a role.</p>
           </div>
@@ -288,6 +426,58 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
                 <td>{role.grantsInheritedAccess ? "Derived group membership" : "App-only permission"}</td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="panel">
+        <div className="section-head">
+          <div>
+            <h3>Current business access role assignments</h3>
+            <p className="muted">These assignments represent company roles like Quality Manager or Software Developer.</p>
+          </div>
+          <span className="pill">Business access state</span>
+        </div>
+        <table className="table-tight">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Access role</th>
+              <th>Department</th>
+              <th>Assigned by</th>
+              <th>Assigned at</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {accessAssignments.length > 0 ? (
+              accessAssignments.map((assignment) => (
+                <tr key={assignment.id}>
+                  <td>
+                    <strong>{assignment.user.displayName}</strong>
+                    <div className="muted">{assignment.user.email}</div>
+                  </td>
+                  <td>{assignment.accessRole.displayName}</td>
+                  <td>{assignment.accessRole.department}</td>
+                  <td>{assignment.assignedBy}</td>
+                  <td>{assignment.assignedAt.toISOString().slice(0, 10)}</td>
+                  <td>
+                    <form action={removeUserAccessRole}>
+                      <input type="hidden" name="userAccessRoleId" value={assignment.id} />
+                      <button type="submit" className="button-ghost">
+                        Remove access role
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={6} className="muted">
+                  No business access role assignments have been created yet.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </section>
@@ -391,10 +581,19 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
                 <ul className="clean">
                   {entry.memberships.map((membership) => (
                     <li key={membership.id}>
-                      <strong>{membership.groupMapping.groupEmail}</strong>
-                      <div className="muted">{membership.groupMapping.sharedDrive.name}</div>
+                      <strong>{membership.groupMapping?.groupEmail ?? membership.accessRoleMapping?.groupEmail}</strong>
                       <div className="muted">
-                        {membership.groupMapping.restrictedFolder?.path ?? "Inherited drive access"}
+                        {membership.groupMapping?.sharedDrive.name ?? membership.accessRoleMapping?.sharedDrive.name}
+                      </div>
+                      <div className="muted">
+                        {membership.groupMapping?.restrictedFolder?.path ??
+                          membership.accessRoleMapping?.restrictedFolder?.path ??
+                          "Inherited drive access"}
+                      </div>
+                      <div className="muted">
+                        {membership.accessRoleMapping
+                          ? `Business access role: ${membership.accessRoleMapping.accessRole.displayName}`
+                          : "Administrative app role mapping"}
                       </div>
                     </li>
                   ))}

@@ -87,6 +87,7 @@ export async function assignUserRole(formData: FormData) {
 
   revalidatePath("/users");
   revalidatePath("/access-viewer");
+  revalidatePath("/role-matrix");
 }
 
 export async function removeUserRole(formData: FormData) {
@@ -180,4 +181,210 @@ export async function removeUserRole(formData: FormData) {
 
   revalidatePath("/users");
   revalidatePath("/access-viewer");
+  revalidatePath("/role-matrix");
+}
+
+export async function assignUserAccessRole(formData: FormData) {
+  const session = await requireSession();
+
+  if (!hasAnyRole(session, adminAssignmentRoles)) {
+    throw new Error("Only administrative roles can assign business access roles.");
+  }
+
+  const userEmail = String(formData.get("userEmail") ?? "").trim().toLowerCase();
+  const displayName = String(formData.get("displayName") ?? "").trim();
+  const accessRoleId = String(formData.get("accessRoleId") ?? "").trim();
+
+  if (!userEmail || !accessRoleId) {
+    throw new Error("User email and access role are required.");
+  }
+
+  const accessRole = await prisma.accessRole.findUnique({
+    where: { id: accessRoleId },
+    include: {
+      mappings: {
+        where: {
+          restrictedFolderId: null
+        },
+        include: {
+          sharedDrive: true,
+          restrictedFolder: true
+        }
+      }
+    }
+  });
+
+  if (!accessRole) {
+    throw new Error("Selected access role was not found.");
+  }
+
+  const user = await prisma.user.upsert({
+    where: { email: userEmail },
+    update: {
+      displayName: displayName || userEmail.split("@")[0]
+    },
+    create: {
+      email: userEmail,
+      displayName: displayName || userEmail.split("@")[0]
+    }
+  });
+
+  await prisma.userAccessRole.upsert({
+    where: {
+      userId_accessRoleId: {
+        userId: user.id,
+        accessRoleId: accessRole.id
+      }
+    },
+    update: {
+      assignedBy: session.email
+    },
+    create: {
+      userId: user.id,
+      accessRoleId: accessRole.id,
+      assignedBy: session.email
+    }
+  });
+
+  const membershipService = new GroupMembershipService();
+
+  for (const mapping of accessRole.mappings) {
+    await membershipService.addUserToAccessRoleGroup({
+      actorEmail: session.email,
+      userEmail,
+      groupEmail: mapping.groupEmail,
+      sharedDriveName: mapping.sharedDrive.name,
+      restrictedFolderPath: mapping.restrictedFolder?.path,
+      reason: `Access role ${accessRole.code} assigned through Drive Access Console`
+    });
+  }
+
+  revalidatePath("/users");
+  revalidatePath("/access-viewer");
+  revalidatePath("/role-matrix");
+}
+
+export async function removeUserAccessRole(formData: FormData) {
+  const session = await requireSession();
+
+  if (!hasAnyRole(session, adminAssignmentRoles)) {
+    throw new Error("Only administrative roles can remove business access roles.");
+  }
+
+  const userAccessRoleId = String(formData.get("userAccessRoleId") ?? "").trim();
+
+  if (!userAccessRoleId) {
+    throw new Error("User access role id is required.");
+  }
+
+  const userAccessRole = await prisma.userAccessRole.findUnique({
+    where: { id: userAccessRoleId },
+    include: {
+      user: true,
+      accessRole: {
+        include: {
+          mappings: {
+            where: {
+              restrictedFolderId: null
+            },
+            include: {
+              sharedDrive: true,
+              restrictedFolder: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!userAccessRole) {
+    throw new Error("User access role assignment was not found.");
+  }
+
+  const [otherAccessRoles, appRoles] = await Promise.all([
+    prisma.userAccessRole.findMany({
+      where: {
+        userId: userAccessRole.userId,
+        id: { not: userAccessRole.id }
+      },
+      include: {
+        accessRole: {
+          include: {
+            mappings: {
+              where: {
+                restrictedFolderId: null
+              },
+              include: {
+                sharedDrive: true,
+                restrictedFolder: true
+              }
+            }
+          }
+        }
+      }
+    }),
+    prisma.userRole.findMany({
+      where: {
+        userId: userAccessRole.userId
+      },
+      include: {
+        role: {
+          include: {
+            mappings: {
+              where: {
+                restrictedFolderId: null
+              },
+              include: {
+                sharedDrive: true,
+                restrictedFolder: true
+              }
+            }
+          }
+        }
+      }
+    })
+  ]);
+
+  const membershipService = new GroupMembershipService();
+
+  for (const mapping of userAccessRole.accessRole.mappings) {
+    const stillCoveredByAnotherAccessRole = otherAccessRoles.some((otherRole) =>
+      otherRole.accessRole.mappings.some(
+        (otherMapping) =>
+          otherMapping.groupEmail === mapping.groupEmail &&
+          otherMapping.sharedDrive.name === mapping.sharedDrive.name &&
+          (otherMapping.restrictedFolder?.path ?? null) === (mapping.restrictedFolder?.path ?? null)
+      )
+    );
+
+    const stillCoveredByAppRole = appRoles.some((appRole) =>
+      appRole.role.mappings.some(
+        (otherMapping) =>
+          otherMapping.groupEmail === mapping.groupEmail &&
+          otherMapping.sharedDrive.name === mapping.sharedDrive.name &&
+          (otherMapping.restrictedFolder?.path ?? null) === (mapping.restrictedFolder?.path ?? null)
+      )
+    );
+
+    if (stillCoveredByAnotherAccessRole || stillCoveredByAppRole) {
+      continue;
+    }
+
+    await membershipService.removeUserFromAccessRoleGroup({
+      actorEmail: session.email,
+      userEmail: userAccessRole.user.email,
+      groupEmail: mapping.groupEmail,
+      sharedDriveName: mapping.sharedDrive.name,
+      restrictedFolderPath: mapping.restrictedFolder?.path,
+      reason: `Access role ${userAccessRole.accessRole.code} removed through Drive Access Console`
+    });
+  }
+
+  await prisma.userAccessRole.delete({
+    where: { id: userAccessRole.id }
+  });
+
+  revalidatePath("/users");
+  revalidatePath("/access-viewer");
+  revalidatePath("/role-matrix");
 }

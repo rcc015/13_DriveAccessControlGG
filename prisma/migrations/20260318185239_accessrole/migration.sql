@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "AccessRoleMapping_accessRoleId_sharedDriveId_restrictedFolderI_" RENAME TO "AccessRoleMapping_accessRoleId_sharedDriveId_restrictedFold_key";

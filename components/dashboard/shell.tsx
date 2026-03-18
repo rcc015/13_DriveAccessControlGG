@@ -10,6 +10,7 @@ import type { AppRoleName } from "@/types/domain";
 const links = [
   { href: "/", label: "Overview", roles: adminAndReadRoles },
   { href: "/users", label: "Users", roles: adminAssignmentRoles },
+  { href: "/role-matrix", label: "Role Matrix", roles: adminAndReadRoles },
   { href: "/access-viewer", label: "Access Viewer", roles: adminAndReadRoles },
   { href: "/access-requests", label: "Access Requests", roles: adminAssignmentRoles },
   { href: "/access-reviews", label: "Access Reviews", roles: ["SUPER_ADMIN", "REVIEWER", "READ_ONLY_AUDITOR"] },

@@ -62,6 +62,40 @@ export default async function AccessViewerPage({ searchParams }: AccessViewerPag
         <article className="panel">
           <div className="section-head">
             <div>
+              <h3>App roles</h3>
+              <p className="muted">Administrative roles that authorize use of the app itself.</p>
+            </div>
+          </div>
+          <ul className="clean">
+            {access.appRoles.length > 0 ? (
+              access.appRoles.map((role) => <li key={role}>{role.replaceAll("_", " ")}</li>)
+            ) : (
+              <li className="muted">No app roles assigned.</li>
+            )}
+          </ul>
+        </article>
+
+        <article className="panel">
+          <div className="section-head">
+            <div>
+              <h3>Business access roles</h3>
+              <p className="muted">Company-facing roles like Quality Manager or Software Developer.</p>
+            </div>
+          </div>
+          <ul className="clean">
+            {access.accessRoles.length > 0 ? (
+              access.accessRoles.map((role) => <li key={role}>{role}</li>)
+            ) : (
+              <li className="muted">No business access roles assigned.</li>
+            )}
+          </ul>
+        </article>
+      </section>
+
+      <section className="two-up">
+        <article className="panel">
+          <div className="section-head">
+            <div>
               <h3>Google Groups</h3>
               <p className="muted">Mapped memberships active for this user.</p>
             </div>

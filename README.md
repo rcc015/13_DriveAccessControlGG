@@ -183,6 +183,8 @@ Template:
 - Google API integration plan: [docs/google-api-plan.md](/Users/rodrigocastro/00_casdev/00_git/13_DriveAccessControlGG/13_DriveAccessControlGG/docs/google-api-plan.md)
 - Mock mode: [docs/mock-mode.md](/Users/rodrigocastro/00_casdev/00_git/13_DriveAccessControlGG/13_DriveAccessControlGG/docs/mock-mode.md)
 - IT handover contract: [docs/it-handover-contract.md](/Users/rodrigocastro/00_casdev/00_git/13_DriveAccessControlGG/13_DriveAccessControlGG/docs/it-handover-contract.md)
+- Functional role catalog: [docs/functional-role-catalog.md](/Users/rodrigocastro/00_casdev/00_git/13_DriveAccessControlGG/13_DriveAccessControlGG/docs/functional-role-catalog.md)
+- Company role mapping draft: [docs/company-role-mapping-draft.md](/Users/rodrigocastro/00_casdev/00_git/13_DriveAccessControlGG/13_DriveAccessControlGG/docs/company-role-mapping-draft.md)
 - Project structure: [docs/project-structure.md](/Users/rodrigocastro/00_casdev/00_git/13_DriveAccessControlGG/13_DriveAccessControlGG/docs/project-structure.md)
 - MVP implementation plan: [docs/mvp-implementation-plan.md](/Users/rodrigocastro/00_casdev/00_git/13_DriveAccessControlGG/13_DriveAccessControlGG/docs/mvp-implementation-plan.md)
 - Design pack index: [docs/design-pack.md](/Users/rodrigocastro/00_casdev/00_git/13_DriveAccessControlGG/13_DriveAccessControlGG/docs/design-pack.md)

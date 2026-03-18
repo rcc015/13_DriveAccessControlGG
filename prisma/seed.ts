@@ -59,6 +59,148 @@ async function main() {
     });
   }
 
+  const accessRoles = [
+    {
+      code: "DIRECTOR_OF_QUALITY",
+      displayName: "Director of Quality",
+      department: "QMS",
+      restrictedAccessMode: "STANDARD",
+      description: "Senior quality governance role with owner-level QMS coverage."
+    },
+    {
+      code: "QUALITY_MANAGER",
+      displayName: "Quality Manager",
+      department: "QMS",
+      restrictedAccessMode: "POLICY_REVIEW",
+      description: "Owner-level quality role with governance access under active policy review."
+    },
+    {
+      code: "QUALITY_CONTROL_SPECIALIST",
+      displayName: "Quality Control Specialist",
+      department: "QMS",
+      restrictedAccessMode: "EXCEPTION_FIRST",
+      description: "Standard QMS editor without default governance branch access."
+    },
+    {
+      code: "CONFIGURATION_MANAGER",
+      displayName: "Configuration Manager",
+      department: "QMS",
+      restrictedAccessMode: "STANDARD",
+      description: "QMS owner with default governance-heavy work in controlled branches."
+    },
+    {
+      code: "PRODUCT_MANAGER",
+      displayName: "Product Manager",
+      department: "Strategic",
+      restrictedAccessMode: "NONE",
+      description: "Strategic planning and portfolio collaboration role."
+    },
+    {
+      code: "DIRECTOR_OF_PRODUCT",
+      displayName: "Director of Product",
+      department: "Strategic",
+      restrictedAccessMode: "NONE",
+      description: "Owner-level strategic role for roadmap and decision artifacts."
+    },
+    {
+      code: "TECH_PROJECT_MANAGER",
+      displayName: "Tech Project Manager",
+      department: "Cross-drive",
+      restrictedAccessMode: "NONE",
+      description: "Cross-functional delivery role spanning strategic and operational work."
+    },
+    {
+      code: "DIRECTOR_OF_OPERATIONS",
+      displayName: "Director of Operations",
+      department: "Cross-drive",
+      restrictedAccessMode: "EXCEPTION_FIRST",
+      description: "Cross-drive operations leader spanning support and operational execution."
+    },
+    {
+      code: "INSTRUMENT_TECHNICAL_LEAD",
+      displayName: "Instrument Technical Lead",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Lifecycle owner role for instrument delivery and engineering control."
+    },
+    {
+      code: "SOFTWARE_DEVELOPER",
+      displayName: "Software Developer",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Standard engineering contributor in the operational working directory."
+    },
+    {
+      code: "SOFTWARE_ARCHITECT",
+      displayName: "Software Architect",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Owner-level technical governance role within operational engineering."
+    },
+    {
+      code: "CLINICAL_SUPPORT",
+      displayName: "Clinical Support",
+      department: "Operational",
+      restrictedAccessMode: "EXCEPTION_FIRST",
+      description: "Clinical operations contributor aligned to Operational working, not Support."
+    },
+    {
+      code: "AURA_LINE_MANAGER",
+      displayName: "AURA Line Manager",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "LabOps contributor inside the Operational working structure."
+    },
+    {
+      code: "HR_DIRECTOR",
+      displayName: "HR Director",
+      department: "Support",
+      restrictedAccessMode: "STANDARD",
+      description: "Support role with default access to Human Resources restricted materials."
+    },
+    {
+      code: "FINANCE_MANAGER",
+      displayName: "Finance Manager",
+      department: "Support",
+      restrictedAccessMode: "STANDARD",
+      description: "Support role with standard finance restricted-folder access."
+    },
+    {
+      code: "LEGAL_MANAGER",
+      displayName: "Legal Manager",
+      department: "Support",
+      restrictedAccessMode: "STANDARD",
+      description: "Support role with standard legal restricted-folder access."
+    },
+    {
+      code: "FACILITIES_PUBLIC_RELATIONS",
+      displayName: "Facilities and Public Relations",
+      department: "Support",
+      restrictedAccessMode: "EXCEPTION_FIRST",
+      description: "Support owner role without default access to HR, Finance, or Legal branches."
+    },
+    {
+      code: "COMMERCIAL_OPS",
+      displayName: "Commercial Ops",
+      department: "Support",
+      restrictedAccessMode: "EXCEPTION_FIRST",
+      description: "Support-aligned business role, using support ownership until a dedicated group exists."
+    }
+  ] as const;
+
+  for (const accessRole of accessRoles) {
+    await prisma.accessRole.upsert({
+      where: { code: accessRole.code },
+      update: {
+        displayName: accessRole.displayName,
+        department: accessRole.department,
+        restrictedAccessMode: accessRole.restrictedAccessMode,
+        description: accessRole.description
+      },
+      create: accessRole
+    });
+  }
+
   const drives = [
     "01_QMS_Working",
     "02_Strategic_Working",
@@ -103,6 +245,27 @@ async function main() {
     SUPPORT_ACCESS_ADMIN: await prisma.role.findUniqueOrThrow({ where: { name: "SUPPORT_ACCESS_ADMIN" } }),
     REVIEWER: await prisma.role.findUniqueOrThrow({ where: { name: "REVIEWER" } }),
     READ_ONLY_AUDITOR: await prisma.role.findUniqueOrThrow({ where: { name: "READ_ONLY_AUDITOR" } })
+  };
+
+  const accessRoleByCode = {
+    DIRECTOR_OF_QUALITY: await prisma.accessRole.findUniqueOrThrow({ where: { code: "DIRECTOR_OF_QUALITY" } }),
+    QUALITY_MANAGER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "QUALITY_MANAGER" } }),
+    QUALITY_CONTROL_SPECIALIST: await prisma.accessRole.findUniqueOrThrow({ where: { code: "QUALITY_CONTROL_SPECIALIST" } }),
+    CONFIGURATION_MANAGER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "CONFIGURATION_MANAGER" } }),
+    PRODUCT_MANAGER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "PRODUCT_MANAGER" } }),
+    DIRECTOR_OF_PRODUCT: await prisma.accessRole.findUniqueOrThrow({ where: { code: "DIRECTOR_OF_PRODUCT" } }),
+    TECH_PROJECT_MANAGER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "TECH_PROJECT_MANAGER" } }),
+    DIRECTOR_OF_OPERATIONS: await prisma.accessRole.findUniqueOrThrow({ where: { code: "DIRECTOR_OF_OPERATIONS" } }),
+    INSTRUMENT_TECHNICAL_LEAD: await prisma.accessRole.findUniqueOrThrow({ where: { code: "INSTRUMENT_TECHNICAL_LEAD" } }),
+    SOFTWARE_DEVELOPER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "SOFTWARE_DEVELOPER" } }),
+    SOFTWARE_ARCHITECT: await prisma.accessRole.findUniqueOrThrow({ where: { code: "SOFTWARE_ARCHITECT" } }),
+    CLINICAL_SUPPORT: await prisma.accessRole.findUniqueOrThrow({ where: { code: "CLINICAL_SUPPORT" } }),
+    AURA_LINE_MANAGER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "AURA_LINE_MANAGER" } }),
+    HR_DIRECTOR: await prisma.accessRole.findUniqueOrThrow({ where: { code: "HR_DIRECTOR" } }),
+    FINANCE_MANAGER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "FINANCE_MANAGER" } }),
+    LEGAL_MANAGER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "LEGAL_MANAGER" } }),
+    FACILITIES_PUBLIC_RELATIONS: await prisma.accessRole.findUniqueOrThrow({ where: { code: "FACILITIES_PUBLIC_RELATIONS" } }),
+    COMMERCIAL_OPS: await prisma.accessRole.findUniqueOrThrow({ where: { code: "COMMERCIAL_OPS" } })
   };
 
   await prisma.groupMapping.deleteMany({
@@ -279,6 +442,67 @@ async function main() {
     });
   }
 
+  const accessRoleMappings = [
+    [accessRoleByCode.DIRECTOR_OF_QUALITY.id, driveByName.qms.id, null, groupEmails.qualityOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.DIRECTOR_OF_QUALITY.id, driveByName.qms.id, restrictedByPath.qmsGovernance.id, groupEmails.qualityOwner, "RESTRICTED"],
+    [accessRoleByCode.QUALITY_MANAGER.id, driveByName.qms.id, null, groupEmails.qualityOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.QUALITY_MANAGER.id, driveByName.qms.id, restrictedByPath.qmsGovernance.id, groupEmails.qualityOwner, "RESTRICTED"],
+    [accessRoleByCode.QUALITY_CONTROL_SPECIALIST.id, driveByName.qms.id, null, groupEmails.qualityEditor, "CONTRIBUTOR"],
+    [accessRoleByCode.CONFIGURATION_MANAGER.id, driveByName.qms.id, null, groupEmails.qualityOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.CONFIGURATION_MANAGER.id, driveByName.qms.id, restrictedByPath.qmsGovernance.id, groupEmails.qualityOwner, "RESTRICTED"],
+    [accessRoleByCode.PRODUCT_MANAGER.id, driveByName.strategic.id, null, groupEmails.strategicEditor, "CONTRIBUTOR"],
+    [accessRoleByCode.DIRECTOR_OF_PRODUCT.id, driveByName.strategic.id, null, groupEmails.strategicOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.TECH_PROJECT_MANAGER.id, driveByName.strategic.id, null, groupEmails.strategicEditor, "CONTRIBUTOR"],
+    [accessRoleByCode.TECH_PROJECT_MANAGER.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
+    [accessRoleByCode.DIRECTOR_OF_OPERATIONS.id, driveByName.operational.id, null, groupEmails.operationalOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.DIRECTOR_OF_OPERATIONS.id, driveByName.support.id, null, groupEmails.supportOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.INSTRUMENT_TECHNICAL_LEAD.id, driveByName.operational.id, null, groupEmails.operationalOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.SOFTWARE_DEVELOPER.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
+    [accessRoleByCode.SOFTWARE_ARCHITECT.id, driveByName.operational.id, null, groupEmails.operationalOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.CLINICAL_SUPPORT.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
+    [accessRoleByCode.AURA_LINE_MANAGER.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
+    [accessRoleByCode.HR_DIRECTOR.id, driveByName.support.id, null, groupEmails.hr, "CONTENT_MANAGER"],
+    [accessRoleByCode.HR_DIRECTOR.id, driveByName.support.id, restrictedByPath.hr.id, groupEmails.hr, "RESTRICTED"],
+    [accessRoleByCode.FINANCE_MANAGER.id, driveByName.support.id, null, groupEmails.finance, "CONTENT_MANAGER"],
+    [accessRoleByCode.FINANCE_MANAGER.id, driveByName.support.id, restrictedByPath.finance.id, groupEmails.finance, "RESTRICTED"],
+    [accessRoleByCode.LEGAL_MANAGER.id, driveByName.support.id, null, groupEmails.legal, "CONTENT_MANAGER"],
+    [accessRoleByCode.LEGAL_MANAGER.id, driveByName.support.id, restrictedByPath.legal.id, groupEmails.legal, "RESTRICTED"],
+    [accessRoleByCode.FACILITIES_PUBLIC_RELATIONS.id, driveByName.support.id, null, groupEmails.supportOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.COMMERCIAL_OPS.id, driveByName.support.id, null, groupEmails.supportOwner, "CONTENT_MANAGER"]
+  ] as const;
+
+  for (const [accessRoleId, sharedDriveId, restrictedFolderId, groupEmail, accessLevel] of accessRoleMappings) {
+    const existing = await prisma.accessRoleMapping.findFirst({
+      where: {
+        accessRoleId,
+        sharedDriveId,
+        restrictedFolderId: restrictedFolderId ?? null,
+        groupEmail
+      }
+    });
+
+    if (existing) {
+      await prisma.accessRoleMapping.update({
+        where: { id: existing.id },
+        data: {
+          accessLevel,
+          restrictedFolderId
+        }
+      });
+      continue;
+    }
+
+    await prisma.accessRoleMapping.create({
+      data: {
+        accessRoleId,
+        sharedDriveId,
+        restrictedFolderId,
+        groupEmail,
+        accessLevel
+      }
+    });
+  }
+
   const folderOwners = [
     [
       driveByName.qms.id,
@@ -369,18 +593,26 @@ async function main() {
   ] as const;
 
   for (const [userId, groupMappingId] of memberships) {
-    await prisma.groupMembership.upsert({
+    const existing = await prisma.groupMembership.findFirst({
       where: {
-        userId_groupMappingId: {
-          userId,
-          groupMappingId
+        userId,
+        groupMappingId
+      }
+    });
+
+    if (existing) {
+      await prisma.groupMembership.update({
+        where: { id: existing.id },
+        data: {
+          revokedAt: null,
+          revokedReason: null
         }
-      },
-      update: {
-        revokedAt: null,
-        revokedReason: null
-      },
-      create: {
+      });
+      continue;
+    }
+
+    await prisma.groupMembership.create({
+      data: {
         userId,
         groupMappingId,
         source: "APP_MANAGED"
@@ -448,6 +680,10 @@ async function main() {
   });
 
   for (const membership of reviewSourceMemberships) {
+    if (!membership.groupMapping) {
+      continue;
+    }
+
     const reviewItemId = `review-${membership.id}`;
     await prisma.accessReviewItem.upsert({
       where: { id: reviewItemId },

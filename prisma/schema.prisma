@@ -39,16 +39,24 @@ enum MembershipSource {
   IMPORTED
 }
 
+enum AccessRoleRestrictedMode {
+  NONE
+  STANDARD
+  EXCEPTION_FIRST
+  POLICY_REVIEW
+}
+
 model User {
-  id             String            @id @default(cuid())
-  email          String            @unique
-  displayName    String
-  isActive       Boolean           @default(true)
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  roleAssignments UserRole[]
-  memberships    GroupMembership[]
-  accessRequests AccessRequest[]
+  id                    String                 @id @default(cuid())
+  email                 String                 @unique
+  displayName           String
+  isActive              Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  roleAssignments       UserRole[]
+  accessRoleAssignments UserAccessRole[]
+  memberships           GroupMembership[]
+  accessRequests        AccessRequest[]
 }
 
 model Role {
@@ -73,6 +81,31 @@ model UserRole {
   @@unique([userId, roleId])
 }
 
+model AccessRole {
+  id                    String                   @id @default(cuid())
+  code                  String                   @unique
+  displayName           String                   @unique
+  description           String
+  department            String
+  restrictedAccessMode  AccessRoleRestrictedMode @default(NONE)
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  assignments           UserAccessRole[]
+  mappings              AccessRoleMapping[]
+}
+
+model UserAccessRole {
+  id           String     @id @default(cuid())
+  userId       String
+  accessRoleId String
+  assignedAt   DateTime   @default(now())
+  assignedBy   String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessRole   AccessRole @relation(fields: [accessRoleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, accessRoleId])
+}
+
 model SharedDrive {
   id             String            @id @default(cuid())
   googleDriveId  String?           @unique
@@ -81,6 +114,7 @@ model SharedDrive {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   mappings       GroupMapping[]
+  accessRoleMappings AccessRoleMapping[]
   folders        RestrictedFolder[]
   folderOwners   FolderOwnership[]
 }
@@ -104,17 +138,38 @@ model GroupMapping {
 }
 
 model GroupMembership {
-  id             String           @id @default(cuid())
-  userId         String
-  groupMappingId String
-  source         MembershipSource @default(APP_MANAGED)
-  grantedAt      DateTime         @default(now())
-  revokedAt      DateTime?
-  revokedReason  String?
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  groupMapping   GroupMapping     @relation(fields: [groupMappingId], references: [id], onDelete: Cascade)
+  id                  String            @id @default(cuid())
+  userId              String
+  groupMappingId      String?
+  accessRoleMappingId String?
+  source              MembershipSource  @default(APP_MANAGED)
+  grantedAt           DateTime          @default(now())
+  revokedAt           DateTime?
+  revokedReason       String?
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupMapping        GroupMapping?     @relation(fields: [groupMappingId], references: [id], onDelete: Cascade)
+  accessRoleMapping   AccessRoleMapping? @relation(fields: [accessRoleMappingId], references: [id], onDelete: Cascade)
 
   @@unique([userId, groupMappingId])
+  @@unique([userId, accessRoleMappingId])
+}
+
+model AccessRoleMapping {
+  id                 String            @id @default(cuid())
+  accessRoleId       String
+  sharedDriveId      String
+  restrictedFolderId String?
+  groupEmail         String
+  accessLevel        String
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  accessRole         AccessRole        @relation(fields: [accessRoleId], references: [id], onDelete: Cascade)
+  sharedDrive        SharedDrive       @relation(fields: [sharedDriveId], references: [id], onDelete: Restrict)
+  restrictedFolder   RestrictedFolder? @relation(fields: [restrictedFolderId], references: [id], onDelete: SetNull)
+  memberships        GroupMembership[]
+
+  @@unique([accessRoleId, sharedDriveId, restrictedFolderId, groupEmail])
+  @@index([groupEmail])
 }
 
 model RestrictedFolder {
@@ -128,8 +183,9 @@ model RestrictedFolder {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   sharedDrive   SharedDrive     @relation(fields: [sharedDriveId], references: [id], onDelete: Cascade)
-  mappings      GroupMapping[]
-  accessRequests AccessRequest[]
+  mappings        GroupMapping[]
+  accessRoleMappings AccessRoleMapping[]
+  accessRequests  AccessRequest[]
 }
 
 model AccessRequest {

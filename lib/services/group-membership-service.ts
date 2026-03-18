@@ -35,23 +35,7 @@ export class GroupMembershipService {
       notes: input.reason
     });
 
-    return prisma.groupMembership.upsert({
-      where: {
-        userId_groupMappingId: {
-          userId,
-          groupMappingId
-        }
-      },
-      create: {
-        userId,
-        groupMappingId,
-        source: "APP_MANAGED"
-      },
-      update: {
-        revokedAt: null,
-        revokedReason: null
-      }
-    });
+    return this.upsertAppRoleMembership(userId, groupMappingId);
   }
 
   async removeUserFromGroup(input: MembershipChangeInput) {
@@ -74,6 +58,55 @@ export class GroupMembershipService {
       where: {
         user: { email: input.userEmail },
         groupMappingId,
+        revokedAt: null
+      },
+      data: {
+        revokedAt: new Date(),
+        revokedReason: input.reason
+      }
+    });
+  }
+
+  async addUserToAccessRoleGroup(input: MembershipChangeInput) {
+    const userId = await this.resolveUserId(input.userEmail);
+    const accessRoleMappingId = await this.resolveAccessRoleMappingId(input);
+
+    await this.directory.addGroupMember(input.groupEmail, input.userEmail);
+
+    await this.auditLog.record({
+      actorEmail: input.actorEmail,
+      actionType: "ACCESS_ROLE_MEMBERSHIP_ADD",
+      targetUserEmail: input.userEmail,
+      targetGroupEmail: input.groupEmail,
+      targetDriveName: input.sharedDriveName,
+      targetFolderPath: input.restrictedFolderPath,
+      result: "SUCCESS",
+      notes: input.reason
+    });
+
+    return this.upsertAccessRoleMembership(userId, accessRoleMappingId);
+  }
+
+  async removeUserFromAccessRoleGroup(input: MembershipChangeInput) {
+    const accessRoleMappingId = await this.resolveAccessRoleMappingId(input);
+
+    await this.directory.removeGroupMember(input.groupEmail, input.userEmail);
+
+    await this.auditLog.record({
+      actorEmail: input.actorEmail,
+      actionType: "ACCESS_ROLE_MEMBERSHIP_REMOVE",
+      targetUserEmail: input.userEmail,
+      targetGroupEmail: input.groupEmail,
+      targetDriveName: input.sharedDriveName,
+      targetFolderPath: input.restrictedFolderPath,
+      result: "SUCCESS",
+      notes: input.reason
+    });
+
+    return prisma.groupMembership.updateMany({
+      where: {
+        user: { email: input.userEmail },
+        accessRoleMappingId,
         revokedAt: null
       },
       data: {
@@ -119,5 +152,86 @@ export class GroupMembershipService {
     }
 
     return mapping.id;
+  }
+
+  private async resolveAccessRoleMappingId(input: Pick<
+    MembershipChangeInput,
+    "groupEmail" | "sharedDriveName" | "restrictedFolderPath"
+  >) {
+    const mapping = await prisma.accessRoleMapping.findFirst({
+      where: {
+        groupEmail: input.groupEmail,
+        sharedDrive: { name: input.sharedDriveName },
+        restrictedFolder: input.restrictedFolderPath
+          ? { path: input.restrictedFolderPath }
+          : null
+      }
+    });
+
+    if (!mapping) {
+      throw new Error(
+        `Access role mapping not found for ${input.groupEmail} on ${input.sharedDriveName}${
+          input.restrictedFolderPath ? ` / ${input.restrictedFolderPath}` : ""
+        }`
+      );
+    }
+
+    return mapping.id;
+  }
+
+  private async upsertAppRoleMembership(userId: string, groupMappingId: string) {
+    const existing = await prisma.groupMembership.findFirst({
+      where: {
+        userId,
+        groupMappingId
+      }
+    });
+
+    if (existing) {
+      return prisma.groupMembership.update({
+        where: { id: existing.id },
+        data: {
+          revokedAt: null,
+          revokedReason: null,
+          source: "APP_MANAGED"
+        }
+      });
+    }
+
+    return prisma.groupMembership.create({
+      data: {
+        userId,
+        groupMappingId,
+        source: "APP_MANAGED"
+      }
+    });
+  }
+
+  private async upsertAccessRoleMembership(userId: string, accessRoleMappingId: string) {
+    const existing = await prisma.groupMembership.findFirst({
+      where: {
+        userId,
+        accessRoleMappingId
+      }
+    });
+
+    if (existing) {
+      return prisma.groupMembership.update({
+        where: { id: existing.id },
+        data: {
+          revokedAt: null,
+          revokedReason: null,
+          source: "APP_MANAGED"
+        }
+      });
+    }
+
+    return prisma.groupMembership.create({
+      data: {
+        userId,
+        accessRoleMappingId,
+        source: "APP_MANAGED"
+      }
+    });
   }
 }

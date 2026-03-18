@@ -3,6 +3,8 @@ import type { EffectiveAccessSummary } from "@/types/domain";
 
 export class AccessViewerService {
   async getUserAccess(email: string): Promise<{
+    appRoles: string[];
+    accessRoles: string[];
     groups: string[];
     inheritedSharedDrives: EffectiveAccessSummary[];
     restrictedFolderExceptions: string[];
@@ -10,10 +12,25 @@ export class AccessViewerService {
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
+        roleAssignments: {
+          include: {
+            role: true
+          }
+        },
+        accessRoleAssignments: {
+          include: {
+            accessRole: true
+          }
+        },
         memberships: {
           where: { revokedAt: null },
           include: {
             groupMapping: {
+              include: {
+                sharedDrive: true
+              }
+            },
+            accessRoleMapping: {
               include: {
                 sharedDrive: true
               }
@@ -34,6 +51,8 @@ export class AccessViewerService {
 
     if (!user) {
       return {
+        appRoles: [],
+        accessRoles: [],
         groups: [],
         inheritedSharedDrives: [],
         restrictedFolderExceptions: []
@@ -43,14 +62,24 @@ export class AccessViewerService {
     const driveMap = new Map<string, EffectiveAccessSummary>();
 
     for (const membership of user.memberships) {
-      const driveName = membership.groupMapping.sharedDrive.name;
+      const driveName =
+        membership.groupMapping?.sharedDrive.name ?? membership.accessRoleMapping?.sharedDrive.name;
+
+      if (!driveName) {
+        continue;
+      }
+
       const summary = driveMap.get(driveName) ?? {
         sharedDriveName: driveName,
         viaGroups: [],
         restrictedFolders: []
       };
 
-      summary.viaGroups.push(membership.groupMapping.groupEmail);
+      const groupEmail = membership.groupMapping?.groupEmail ?? membership.accessRoleMapping?.groupEmail;
+
+      if (groupEmail) {
+        summary.viaGroups.push(groupEmail);
+      }
       driveMap.set(driveName, summary);
     }
 
@@ -59,7 +88,15 @@ export class AccessViewerService {
       .filter((value): value is string => Boolean(value));
 
     return {
-      groups: Array.from(new Set(user.memberships.map((membership) => membership.groupMapping.groupEmail))),
+      appRoles: Array.from(new Set(user.roleAssignments.map((assignment) => assignment.role.name))),
+      accessRoles: Array.from(new Set(user.accessRoleAssignments.map((assignment) => assignment.accessRole.displayName))),
+      groups: Array.from(
+        new Set(
+          user.memberships
+            .map((membership) => membership.groupMapping?.groupEmail ?? membership.accessRoleMapping?.groupEmail)
+            .filter((value): value is string => Boolean(value))
+        )
+      ),
       inheritedSharedDrives: Array.from(driveMap.values()),
       restrictedFolderExceptions: Array.from(new Set(exceptions))
     };
