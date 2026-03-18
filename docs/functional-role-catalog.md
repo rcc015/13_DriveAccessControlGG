@@ -150,6 +150,8 @@ These are not the same as business roles.
     - `04_Support_Working / 03_SupportProcesses / 06_Legal`
     - recommended: role-based only if Legal policy confirms this is standard
 
+Support-side business roles such as `Office Manager and PR`, `Facilities and Public Relations`, and `Commercial Ops` are currently modeled as contributor-level roles in the app catalog. The current Google group inventory does not yet include a separate support contributor group, so these roles still map to `grp-support-owner@conceivable.life` temporarily. That means the catalog intent is now least-privilege aware, but the final Google-side permission shape should be revisited once a dedicated support contributor group exists.
+
 ### Broad read access
 
 - `ALL_EMPLOYEES_VIEWER`

@@ -54,12 +54,12 @@ The goal is to move from generic technical roles to business-aligned access role
 | Clinical Project Manager | `grp-operational-owner@conceivable.life` | `03_Operational_Working` | Exception-first | Align to clinical operations within Operational working |
 | Clinical Support | `grp-operational-contributor@conceivable.life` | `03_Operational_Working` | Exception-first | Confirmed under `07_ClinicalOps` |
 | HR Director | `grp-hr@conceivable.life` | `04_Support_Working` | `01_HumanResources` likely standard | Restricted access likely role-based |
-| Office Manager and PR | `grp-support-owner@conceivable.life` | `04_Support_Working` | HR/Finance/Legal folders by exception | Includes facilities and public relations work |
-| Facilities and Public Relations | `grp-support-owner@conceivable.life` | `04_Support_Working` | HR/Finance/Legal folders by exception | Confirmed in Support drive |
-| Commercial Ops | `grp-support-owner@conceivable.life` | `04_Support_Working` | Exception-first | Confirmed in Support drive; candidate for future dedicated group |
+| Office Manager and PR | `grp-support-owner@conceivable.life` | `04_Support_Working` | HR/Finance/Legal folders by exception | Treat as contributor-level support access for now |
+| Facilities and Public Relations | `grp-support-owner@conceivable.life` | `04_Support_Working` | HR/Finance/Legal folders by exception | Confirmed in Support drive; contributor-level target |
+| Commercial Ops | `grp-support-owner@conceivable.life` | `04_Support_Working` | Exception-first | Confirmed in Support drive; contributor-level target and candidate for future dedicated group |
 | Finance Manager / Finance Lead | `grp-finance@conceivable.life` | `04_Support_Working` | `05_Finance` likely standard | Restricted folder likely role-based |
 | Legal Manager / Legal Lead | `grp-legal@conceivable.life` | `04_Support_Working` | `06_Legal` likely standard | Restricted folder likely role-based |
-| IT role / IT support | `grp-it@conceivable.life` | `04_Support_Working` | Restricted folders by exception unless admin support requires otherwise | Support access, not HR/Finance/Legal by default |
+| IT role / IT support | `grp-it@conceivable.life` | `04_Support_Working` | Restricted folders by exception unless admin support requires otherwise | Contributor-level support access, not HR/Finance/Legal by default |
 | Managing Director | `grp-drive-admin@conceivable.life` or governance-specific future role | All drives if policy allows | Restricted by policy review | High-impact role, should be tightly controlled |
 | Founder & CEO | `grp-drive-admin@conceivable.life` or no routine access | Policy decision required | Restricted by policy review | Avoid default over-broad access unless justified |
 

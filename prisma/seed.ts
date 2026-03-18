@@ -303,7 +303,7 @@ async function main() {
       displayName: "Office Manager and PR",
       department: "Support",
       restrictedAccessMode: "EXCEPTION_FIRST",
-      description: "Support role covering office coordination and communications work."
+      description: "Support contributor role covering office coordination and communications work."
     },
     {
       code: "FINANCE_MANAGER",
@@ -324,21 +324,21 @@ async function main() {
       displayName: "Facilities and Public Relations",
       department: "Support",
       restrictedAccessMode: "EXCEPTION_FIRST",
-      description: "Support owner role without default access to HR, Finance, or Legal branches."
+      description: "Support contributor role without default access to HR, Finance, or Legal branches."
     },
     {
       code: "COMMERCIAL_OPS",
       displayName: "Commercial Ops",
       department: "Support",
       restrictedAccessMode: "EXCEPTION_FIRST",
-      description: "Support-aligned business role, using support ownership until a dedicated group exists."
+      description: "Support-aligned contributor role, pending a more specific support group if needed."
     },
     {
       code: "IT_SUPPORT",
       displayName: "IT Support",
       department: "Support",
       restrictedAccessMode: "EXCEPTION_FIRST",
-      description: "Support role for IT operations without default HR, Finance, or Legal access."
+      description: "IT contributor role without default HR, Finance, or Legal access."
     }
   ] as const;
 
@@ -659,14 +659,14 @@ async function main() {
     [accessRoleByCode.AURA_LINE_MANAGER.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
     [accessRoleByCode.HR_DIRECTOR.id, driveByName.support.id, null, groupEmails.hr, "CONTENT_MANAGER"],
     [accessRoleByCode.HR_DIRECTOR.id, driveByName.support.id, restrictedByPath.hr.id, groupEmails.hr, "RESTRICTED"],
-    [accessRoleByCode.OFFICE_MANAGER_PR.id, driveByName.support.id, null, groupEmails.supportOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.OFFICE_MANAGER_PR.id, driveByName.support.id, null, groupEmails.supportOwner, "CONTRIBUTOR"],
     [accessRoleByCode.FINANCE_MANAGER.id, driveByName.support.id, null, groupEmails.finance, "CONTENT_MANAGER"],
     [accessRoleByCode.FINANCE_MANAGER.id, driveByName.support.id, restrictedByPath.finance.id, groupEmails.finance, "RESTRICTED"],
     [accessRoleByCode.LEGAL_MANAGER.id, driveByName.support.id, null, groupEmails.legal, "CONTENT_MANAGER"],
     [accessRoleByCode.LEGAL_MANAGER.id, driveByName.support.id, restrictedByPath.legal.id, groupEmails.legal, "RESTRICTED"],
-    [accessRoleByCode.FACILITIES_PUBLIC_RELATIONS.id, driveByName.support.id, null, groupEmails.supportOwner, "CONTENT_MANAGER"],
-    [accessRoleByCode.COMMERCIAL_OPS.id, driveByName.support.id, null, groupEmails.supportOwner, "CONTENT_MANAGER"],
-    [accessRoleByCode.IT_SUPPORT.id, driveByName.support.id, null, groupEmails.it, "CONTENT_MANAGER"]
+    [accessRoleByCode.FACILITIES_PUBLIC_RELATIONS.id, driveByName.support.id, null, groupEmails.supportOwner, "CONTRIBUTOR"],
+    [accessRoleByCode.COMMERCIAL_OPS.id, driveByName.support.id, null, groupEmails.supportOwner, "CONTRIBUTOR"],
+    [accessRoleByCode.IT_SUPPORT.id, driveByName.support.id, null, groupEmails.it, "CONTRIBUTOR"]
   ] as const;
 
   for (const [accessRoleId, sharedDriveId, restrictedFolderId, groupEmail, accessLevel] of accessRoleMappings) {
