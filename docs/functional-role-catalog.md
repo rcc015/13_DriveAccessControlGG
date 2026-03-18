@@ -198,3 +198,48 @@ This avoids overloading one role model with two different meanings.
    - access role assignment
    - effective group impact preview
 5. decide which restricted folders are role-based versus exception-only
+
+## Current seeded business roles
+
+The app now includes an initial seeded `AccessRole` catalog covering:
+
+- `Director of Quality`
+- `Quality Manager`
+- `Quality Control Specialist`
+- `Configuration Manager`
+- `Product Manager`
+- `Director of Product`
+- `VP of Product`
+- `Tech Project Manager`
+- `Director of Operations`
+- `Research VP`
+- `Research Lead`
+- `Research Engineer`
+- `Instrument Technical Lead`
+- `Software Developer`
+- `Software Architect`
+- `Head of Advanced Optics`
+- `Head of CV/ML`
+- `Mechatronics Director`
+- `Mechatronics Engineer`
+- `Mechatronics Engineer R&D`
+- `Systems Engineer Lead`
+- `Systems Engineer`
+- `Test Engineer`
+- `Head of Testing`
+- `Deployment Engineer`
+- `Fullstack Dev. Eng.`
+- `Computer Vision Eng.`
+- `Robotics Eng.`
+- `Digital Manufacturing Eng.`
+- `Experimental Biologist`
+- `Clinical Project Manager`
+- `Clinical Support`
+- `AURA Line Manager`
+- `HR Director`
+- `Office Manager and PR`
+- `Finance Manager`
+- `Legal Manager`
+- `Facilities and Public Relations`
+- `Commercial Ops`
+- `IT Support`

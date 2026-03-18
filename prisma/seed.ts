@@ -103,6 +103,13 @@ async function main() {
       description: "Owner-level strategic role for roadmap and decision artifacts."
     },
     {
+      code: "VP_OF_PRODUCT",
+      displayName: "VP of Product",
+      department: "Strategic",
+      restrictedAccessMode: "NONE",
+      description: "Senior strategic owner role for portfolio and product direction."
+    },
+    {
       code: "TECH_PROJECT_MANAGER",
       displayName: "Tech Project Manager",
       department: "Cross-drive",
@@ -115,6 +122,27 @@ async function main() {
       department: "Cross-drive",
       restrictedAccessMode: "EXCEPTION_FIRST",
       description: "Cross-drive operations leader spanning support and operational execution."
+    },
+    {
+      code: "RESEARCH_VP",
+      displayName: "Research VP",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "R&D leadership role in the operational working environment."
+    },
+    {
+      code: "RESEARCH_LEAD",
+      displayName: "Research Lead",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Owner-level research role for planning and execution artifacts."
+    },
+    {
+      code: "RESEARCH_ENGINEER",
+      displayName: "Research Engineer",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Standard R&D contributor role in operational work."
     },
     {
       code: "INSTRUMENT_TECHNICAL_LEAD",
@@ -138,6 +166,118 @@ async function main() {
       description: "Owner-level technical governance role within operational engineering."
     },
     {
+      code: "HEAD_OF_ADVANCED_OPTICS",
+      displayName: "Head of Advanced Optics",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Domain lead for optics work inside the operational drive."
+    },
+    {
+      code: "HEAD_OF_CV_ML",
+      displayName: "Head of CV/ML",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Domain lead for computer vision and machine learning work."
+    },
+    {
+      code: "MECHATRONICS_DIRECTOR",
+      displayName: "Mechatronics Director",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Owner-level mechatronics leadership role."
+    },
+    {
+      code: "MECHATRONICS_ENGINEER",
+      displayName: "Mechatronics Engineer",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Standard mechatronics contributor role."
+    },
+    {
+      code: "MECHATRONICS_ENGINEER_RD",
+      displayName: "Mechatronics Engineer R&D",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "R&D mechatronics contributor role."
+    },
+    {
+      code: "SYSTEMS_ENGINEER_LEAD",
+      displayName: "Systems Engineer Lead",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Owner-level systems engineering governance role."
+    },
+    {
+      code: "SYSTEMS_ENGINEER",
+      displayName: "Systems Engineer",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Standard systems engineering contributor role."
+    },
+    {
+      code: "TEST_ENGINEER",
+      displayName: "Test Engineer",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Standard test and verification contributor role."
+    },
+    {
+      code: "HEAD_OF_TESTING",
+      displayName: "Head of Testing",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Owner-level testing leadership role."
+    },
+    {
+      code: "DEPLOYMENT_ENGINEER",
+      displayName: "Deployment Engineer",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Operational contributor for deployment and rollout work."
+    },
+    {
+      code: "FULLSTACK_DEV_ENGINEER",
+      displayName: "Fullstack Dev. Eng.",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Software contributor role for fullstack engineering."
+    },
+    {
+      code: "COMPUTER_VISION_ENGINEER",
+      displayName: "Computer Vision Eng.",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Computer vision contributor role."
+    },
+    {
+      code: "ROBOTICS_ENGINEER",
+      displayName: "Robotics Eng.",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Robotics contributor role."
+    },
+    {
+      code: "DIGITAL_MANUFACTURING_ENGINEER",
+      displayName: "Digital Manufacturing Eng.",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Digital manufacturing contributor role."
+    },
+    {
+      code: "EXPERIMENTAL_BIOLOGIST",
+      displayName: "Experimental Biologist",
+      department: "Operational",
+      restrictedAccessMode: "NONE",
+      description: "Scientific contributor role in operational work."
+    },
+    {
+      code: "CLINICAL_PROJECT_MANAGER",
+      displayName: "Clinical Project Manager",
+      department: "Operational",
+      restrictedAccessMode: "EXCEPTION_FIRST",
+      description: "Owner-level clinical operations role aligned to Operational working."
+    },
+    {
       code: "CLINICAL_SUPPORT",
       displayName: "Clinical Support",
       department: "Operational",
@@ -157,6 +297,13 @@ async function main() {
       department: "Support",
       restrictedAccessMode: "STANDARD",
       description: "Support role with default access to Human Resources restricted materials."
+    },
+    {
+      code: "OFFICE_MANAGER_PR",
+      displayName: "Office Manager and PR",
+      department: "Support",
+      restrictedAccessMode: "EXCEPTION_FIRST",
+      description: "Support role covering office coordination and communications work."
     },
     {
       code: "FINANCE_MANAGER",
@@ -185,6 +332,13 @@ async function main() {
       department: "Support",
       restrictedAccessMode: "EXCEPTION_FIRST",
       description: "Support-aligned business role, using support ownership until a dedicated group exists."
+    },
+    {
+      code: "IT_SUPPORT",
+      displayName: "IT Support",
+      department: "Support",
+      restrictedAccessMode: "EXCEPTION_FIRST",
+      description: "Support role for IT operations without default HR, Finance, or Legal access."
     }
   ] as const;
 
@@ -254,18 +408,40 @@ async function main() {
     CONFIGURATION_MANAGER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "CONFIGURATION_MANAGER" } }),
     PRODUCT_MANAGER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "PRODUCT_MANAGER" } }),
     DIRECTOR_OF_PRODUCT: await prisma.accessRole.findUniqueOrThrow({ where: { code: "DIRECTOR_OF_PRODUCT" } }),
+    VP_OF_PRODUCT: await prisma.accessRole.findUniqueOrThrow({ where: { code: "VP_OF_PRODUCT" } }),
     TECH_PROJECT_MANAGER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "TECH_PROJECT_MANAGER" } }),
     DIRECTOR_OF_OPERATIONS: await prisma.accessRole.findUniqueOrThrow({ where: { code: "DIRECTOR_OF_OPERATIONS" } }),
+    RESEARCH_VP: await prisma.accessRole.findUniqueOrThrow({ where: { code: "RESEARCH_VP" } }),
+    RESEARCH_LEAD: await prisma.accessRole.findUniqueOrThrow({ where: { code: "RESEARCH_LEAD" } }),
+    RESEARCH_ENGINEER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "RESEARCH_ENGINEER" } }),
     INSTRUMENT_TECHNICAL_LEAD: await prisma.accessRole.findUniqueOrThrow({ where: { code: "INSTRUMENT_TECHNICAL_LEAD" } }),
     SOFTWARE_DEVELOPER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "SOFTWARE_DEVELOPER" } }),
     SOFTWARE_ARCHITECT: await prisma.accessRole.findUniqueOrThrow({ where: { code: "SOFTWARE_ARCHITECT" } }),
+    HEAD_OF_ADVANCED_OPTICS: await prisma.accessRole.findUniqueOrThrow({ where: { code: "HEAD_OF_ADVANCED_OPTICS" } }),
+    HEAD_OF_CV_ML: await prisma.accessRole.findUniqueOrThrow({ where: { code: "HEAD_OF_CV_ML" } }),
+    MECHATRONICS_DIRECTOR: await prisma.accessRole.findUniqueOrThrow({ where: { code: "MECHATRONICS_DIRECTOR" } }),
+    MECHATRONICS_ENGINEER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "MECHATRONICS_ENGINEER" } }),
+    MECHATRONICS_ENGINEER_RD: await prisma.accessRole.findUniqueOrThrow({ where: { code: "MECHATRONICS_ENGINEER_RD" } }),
+    SYSTEMS_ENGINEER_LEAD: await prisma.accessRole.findUniqueOrThrow({ where: { code: "SYSTEMS_ENGINEER_LEAD" } }),
+    SYSTEMS_ENGINEER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "SYSTEMS_ENGINEER" } }),
+    TEST_ENGINEER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "TEST_ENGINEER" } }),
+    HEAD_OF_TESTING: await prisma.accessRole.findUniqueOrThrow({ where: { code: "HEAD_OF_TESTING" } }),
+    DEPLOYMENT_ENGINEER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "DEPLOYMENT_ENGINEER" } }),
+    FULLSTACK_DEV_ENGINEER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "FULLSTACK_DEV_ENGINEER" } }),
+    COMPUTER_VISION_ENGINEER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "COMPUTER_VISION_ENGINEER" } }),
+    ROBOTICS_ENGINEER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "ROBOTICS_ENGINEER" } }),
+    DIGITAL_MANUFACTURING_ENGINEER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "DIGITAL_MANUFACTURING_ENGINEER" } }),
+    EXPERIMENTAL_BIOLOGIST: await prisma.accessRole.findUniqueOrThrow({ where: { code: "EXPERIMENTAL_BIOLOGIST" } }),
+    CLINICAL_PROJECT_MANAGER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "CLINICAL_PROJECT_MANAGER" } }),
     CLINICAL_SUPPORT: await prisma.accessRole.findUniqueOrThrow({ where: { code: "CLINICAL_SUPPORT" } }),
     AURA_LINE_MANAGER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "AURA_LINE_MANAGER" } }),
     HR_DIRECTOR: await prisma.accessRole.findUniqueOrThrow({ where: { code: "HR_DIRECTOR" } }),
+    OFFICE_MANAGER_PR: await prisma.accessRole.findUniqueOrThrow({ where: { code: "OFFICE_MANAGER_PR" } }),
     FINANCE_MANAGER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "FINANCE_MANAGER" } }),
     LEGAL_MANAGER: await prisma.accessRole.findUniqueOrThrow({ where: { code: "LEGAL_MANAGER" } }),
     FACILITIES_PUBLIC_RELATIONS: await prisma.accessRole.findUniqueOrThrow({ where: { code: "FACILITIES_PUBLIC_RELATIONS" } }),
-    COMMERCIAL_OPS: await prisma.accessRole.findUniqueOrThrow({ where: { code: "COMMERCIAL_OPS" } })
+    COMMERCIAL_OPS: await prisma.accessRole.findUniqueOrThrow({ where: { code: "COMMERCIAL_OPS" } }),
+    IT_SUPPORT: await prisma.accessRole.findUniqueOrThrow({ where: { code: "IT_SUPPORT" } })
   };
 
   await prisma.groupMapping.deleteMany({
@@ -452,23 +628,45 @@ async function main() {
     [accessRoleByCode.CONFIGURATION_MANAGER.id, driveByName.qms.id, restrictedByPath.qmsGovernance.id, groupEmails.qualityOwner, "RESTRICTED"],
     [accessRoleByCode.PRODUCT_MANAGER.id, driveByName.strategic.id, null, groupEmails.strategicEditor, "CONTRIBUTOR"],
     [accessRoleByCode.DIRECTOR_OF_PRODUCT.id, driveByName.strategic.id, null, groupEmails.strategicOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.VP_OF_PRODUCT.id, driveByName.strategic.id, null, groupEmails.strategicOwner, "CONTENT_MANAGER"],
     [accessRoleByCode.TECH_PROJECT_MANAGER.id, driveByName.strategic.id, null, groupEmails.strategicEditor, "CONTRIBUTOR"],
     [accessRoleByCode.TECH_PROJECT_MANAGER.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
     [accessRoleByCode.DIRECTOR_OF_OPERATIONS.id, driveByName.operational.id, null, groupEmails.operationalOwner, "CONTENT_MANAGER"],
     [accessRoleByCode.DIRECTOR_OF_OPERATIONS.id, driveByName.support.id, null, groupEmails.supportOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.RESEARCH_VP.id, driveByName.operational.id, null, groupEmails.operationalOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.RESEARCH_LEAD.id, driveByName.operational.id, null, groupEmails.operationalOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.RESEARCH_ENGINEER.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
     [accessRoleByCode.INSTRUMENT_TECHNICAL_LEAD.id, driveByName.operational.id, null, groupEmails.operationalOwner, "CONTENT_MANAGER"],
     [accessRoleByCode.SOFTWARE_DEVELOPER.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
     [accessRoleByCode.SOFTWARE_ARCHITECT.id, driveByName.operational.id, null, groupEmails.operationalOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.HEAD_OF_ADVANCED_OPTICS.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
+    [accessRoleByCode.HEAD_OF_CV_ML.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
+    [accessRoleByCode.MECHATRONICS_DIRECTOR.id, driveByName.operational.id, null, groupEmails.operationalOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.MECHATRONICS_ENGINEER.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
+    [accessRoleByCode.MECHATRONICS_ENGINEER_RD.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
+    [accessRoleByCode.SYSTEMS_ENGINEER_LEAD.id, driveByName.operational.id, null, groupEmails.operationalOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.SYSTEMS_ENGINEER.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
+    [accessRoleByCode.TEST_ENGINEER.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
+    [accessRoleByCode.HEAD_OF_TESTING.id, driveByName.operational.id, null, groupEmails.operationalOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.DEPLOYMENT_ENGINEER.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
+    [accessRoleByCode.FULLSTACK_DEV_ENGINEER.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
+    [accessRoleByCode.COMPUTER_VISION_ENGINEER.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
+    [accessRoleByCode.ROBOTICS_ENGINEER.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
+    [accessRoleByCode.DIGITAL_MANUFACTURING_ENGINEER.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
+    [accessRoleByCode.EXPERIMENTAL_BIOLOGIST.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
+    [accessRoleByCode.CLINICAL_PROJECT_MANAGER.id, driveByName.operational.id, null, groupEmails.operationalOwner, "CONTENT_MANAGER"],
     [accessRoleByCode.CLINICAL_SUPPORT.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
     [accessRoleByCode.AURA_LINE_MANAGER.id, driveByName.operational.id, null, groupEmails.operationalContributor, "CONTRIBUTOR"],
     [accessRoleByCode.HR_DIRECTOR.id, driveByName.support.id, null, groupEmails.hr, "CONTENT_MANAGER"],
     [accessRoleByCode.HR_DIRECTOR.id, driveByName.support.id, restrictedByPath.hr.id, groupEmails.hr, "RESTRICTED"],
+    [accessRoleByCode.OFFICE_MANAGER_PR.id, driveByName.support.id, null, groupEmails.supportOwner, "CONTENT_MANAGER"],
     [accessRoleByCode.FINANCE_MANAGER.id, driveByName.support.id, null, groupEmails.finance, "CONTENT_MANAGER"],
     [accessRoleByCode.FINANCE_MANAGER.id, driveByName.support.id, restrictedByPath.finance.id, groupEmails.finance, "RESTRICTED"],
     [accessRoleByCode.LEGAL_MANAGER.id, driveByName.support.id, null, groupEmails.legal, "CONTENT_MANAGER"],
     [accessRoleByCode.LEGAL_MANAGER.id, driveByName.support.id, restrictedByPath.legal.id, groupEmails.legal, "RESTRICTED"],
     [accessRoleByCode.FACILITIES_PUBLIC_RELATIONS.id, driveByName.support.id, null, groupEmails.supportOwner, "CONTENT_MANAGER"],
-    [accessRoleByCode.COMMERCIAL_OPS.id, driveByName.support.id, null, groupEmails.supportOwner, "CONTENT_MANAGER"]
+    [accessRoleByCode.COMMERCIAL_OPS.id, driveByName.support.id, null, groupEmails.supportOwner, "CONTENT_MANAGER"],
+    [accessRoleByCode.IT_SUPPORT.id, driveByName.support.id, null, groupEmails.it, "CONTENT_MANAGER"]
   ] as const;
 
   for (const [accessRoleId, sharedDriveId, restrictedFolderId, groupEmail, accessLevel] of accessRoleMappings) {
