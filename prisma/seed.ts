@@ -37,6 +37,8 @@ const legacyGroupAliases = {
 } as const;
 
 async function main() {
+  const demoEmails = ["ana@company.com", "miguel@company.com", "lucia@company.com"] as const;
+
   const roles = [
     { name: "SUPER_ADMIN", description: "Full platform administration." },
     {
@@ -743,103 +745,59 @@ async function main() {
     });
   }
 
-  const demoUsers = [
-    ["ana@company.com", "Ana Quality"],
-    ["miguel@company.com", "Miguel Operations"],
-    ["lucia@company.com", "Lucia Auditor"]
-  ] as const;
-
-  const userIds: Record<string, string> = {};
-
-  for (const [email, displayName] of demoUsers) {
-    const user = await prisma.user.upsert({
-      where: { email },
-      update: { displayName },
-      create: { email, displayName }
-    });
-    userIds[email] = user.id;
-  }
-
-  const mappingByKey = {
-    qualityEditor: await prisma.groupMapping.findFirstOrThrow({
-      where: {
-        groupEmail: groupEmails.qualityEditor,
-        sharedDriveId: driveByName.qms.id,
-        restrictedFolderId: null
-      }
-    }),
-    operationalContributor: await prisma.groupMapping.findFirstOrThrow({
-      where: {
-        groupEmail: groupEmails.operationalContributor,
-        sharedDriveId: driveByName.operational.id,
-        restrictedFolderId: null
-      }
-    }),
-    auditors: await prisma.groupMapping.findFirstOrThrow({
-      where: {
-        groupEmail: groupEmails.allEmployees,
-        sharedDriveId: driveByName.qms.id,
-        restrictedFolderId: null
-      }
-    })
-  };
-
-  const memberships = [
-    [userIds["ana@company.com"], mappingByKey.qualityEditor.id],
-    [userIds["miguel@company.com"], mappingByKey.operationalContributor.id],
-    [userIds["lucia@company.com"], mappingByKey.auditors.id]
-  ] as const;
-
-  for (const [userId, groupMappingId] of memberships) {
-    const existing = await prisma.groupMembership.findFirst({
-      where: {
-        userId,
-        groupMappingId
-      }
-    });
-
-    if (existing) {
-      await prisma.groupMembership.update({
-        where: { id: existing.id },
-        data: {
-          revokedAt: null,
-          revokedReason: null
-        }
-      });
-      continue;
-    }
-
-    await prisma.groupMembership.create({
-      data: {
-        userId,
-        groupMappingId,
-        source: "APP_MANAGED"
-      }
-    });
-  }
-
-  await prisma.accessRequest.upsert({
-    where: { id: "seed-finance-exception" },
-    update: {
-      status: "APPROVED",
-      approverEmail: "admin@example.com",
-      approvalReference: "APR-2026-001",
-      justification: "Quarterly finance evidence review"
+  const demoUsers = await prisma.user.findMany({
+    where: {
+      email: { in: [...demoEmails] }
     },
-    create: {
-      id: "seed-finance-exception",
-      userId: userIds["lucia@company.com"],
-      restrictedFolderId: restrictedByPath.finance.id,
-      requestedByEmail: "reviewer@example.com",
-      approverEmail: "admin@example.com",
-      approvalReference: "APR-2026-001",
-      justification: "Quarterly finance evidence review",
-      status: "APPROVED",
-      startDate: new Date("2026-01-05T00:00:00.000Z"),
-      endDate: new Date("2026-03-31T23:59:59.000Z"),
-      decidedAt: new Date("2026-01-06T00:00:00.000Z")
-    }
+    select: { id: true, email: true }
   });
+
+  if (demoUsers.length > 0) {
+    const demoUserIds = demoUsers.map((user) => user.id);
+
+    await prisma.accessReviewItem.deleteMany({
+      where: {
+        OR: [
+          { memberEmail: { in: [...demoEmails] } },
+          { memberEmail: { in: demoUsers.map((user) => user.email) } }
+        ]
+      }
+    });
+
+    await prisma.accessRequest.deleteMany({
+      where: {
+        OR: [
+          { userId: { in: demoUserIds } },
+          { requestedByEmail: { in: [...demoEmails] } },
+          { approverEmail: { in: [...demoEmails] } }
+        ]
+      }
+    });
+
+    await prisma.groupMembership.deleteMany({
+      where: {
+        userId: { in: demoUserIds }
+      }
+    });
+
+    await prisma.userRole.deleteMany({
+      where: {
+        userId: { in: demoUserIds }
+      }
+    });
+
+    await prisma.userAccessRole.deleteMany({
+      where: {
+        userId: { in: demoUserIds }
+      }
+    });
+
+    await prisma.user.deleteMany({
+      where: {
+        id: { in: demoUserIds }
+      }
+    });
+  }
 
   await prisma.accessReview.upsert({
     where: { id: "seed-q1-2026-review" },
@@ -847,7 +805,8 @@ async function main() {
       name: "Q1 2026 Quarterly Access Review",
       quarterLabel: "Q1 2026",
       reviewerEmail: "rodrigo@conceivable.life",
-      status: "OPEN"
+      status: "OPEN",
+      dueAt: new Date("2026-03-31T23:59:59.000Z")
     },
     create: {
       id: "seed-q1-2026-review",

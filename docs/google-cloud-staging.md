@@ -94,3 +94,35 @@ DATABASE_URL='postgresql://USER:PASSWORD@localhost/drive_access_console?host=/cl
 4. Validate one report upload
 5. Validate one business role assignment and revocation
 6. Then decide whether to create a separate production environment
+
+## Shared Drive bootstrap matrix
+
+The app's RBAC mapping is only half of the access path. For real access to work, the mapped Google Groups must also be added directly to each Shared Drive with the correct Google Drive role.
+
+Recommended baseline configuration:
+
+| Shared Drive | Google Group | Drive role |
+| --- | --- | --- |
+| `01_QMS_Working` | `grp-quality-owner@conceivable.life` | `Content manager` |
+| `01_QMS_Working` | `grp-quality-editor@conceivable.life` | `Contributor` |
+| `02_Strategic_Working` | `grp-strategic-owner@conceivable.life` | `Content manager` |
+| `02_Strategic_Working` | `grp-strategic-editor@conceivable.life` | `Contributor` |
+| `03_Operational_Working` | `grp-operational-owner@conceivable.life` | `Content manager` |
+| `03_Operational_Working` | `grp-operational-contributor@conceivable.life` | `Contributor` |
+| `04_Support_Working` | `grp-support-owner@conceivable.life` | `Content manager` |
+| `04_Support_Working` | `grp-hr@conceivable.life` | `Content manager` |
+| `04_Support_Working` | `grp-finance@conceivable.life` | `Content manager` |
+| `04_Support_Working` | `grp-legal@conceivable.life` | `Content manager` |
+| `04_Support_Working` | `grp-it@conceivable.life` | `Contributor` |
+
+Validation sequence for a real access grant:
+
+1. assign the business access role in the app
+2. confirm the user appears in the expected Google Group
+3. confirm that Google Group is a member of the target Shared Drive
+4. ask the user to refresh Google Drive and verify the Shared Drive appears
+
+Known staging lesson:
+
+- `Access Viewer` can show the correct RBAC path even when real Drive access still fails
+- if that happens, check the Shared Drive member list before debugging the app
