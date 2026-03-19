@@ -25,9 +25,6 @@ export async function assignUserRole(formData: FormData) {
     where: { id: roleId },
     include: {
       mappings: {
-        where: {
-          restrictedFolderId: null
-        },
         include: {
           sharedDrive: true,
           restrictedFolder: true
@@ -110,9 +107,6 @@ export async function removeUserRole(formData: FormData) {
       role: {
         include: {
           mappings: {
-            where: {
-              restrictedFolderId: null
-            },
             include: {
               sharedDrive: true,
               restrictedFolder: true
@@ -136,9 +130,6 @@ export async function removeUserRole(formData: FormData) {
       role: {
         include: {
           mappings: {
-            where: {
-              restrictedFolderId: null
-            },
             include: {
               sharedDrive: true,
               restrictedFolder: true
@@ -203,9 +194,6 @@ export async function assignUserAccessRole(formData: FormData) {
     where: { id: accessRoleId },
     include: {
       mappings: {
-        where: {
-          restrictedFolderId: null
-        },
         include: {
           sharedDrive: true,
           restrictedFolder: true
@@ -284,9 +272,6 @@ export async function removeUserAccessRole(formData: FormData) {
       accessRole: {
         include: {
           mappings: {
-            where: {
-              restrictedFolderId: null
-            },
             include: {
               sharedDrive: true,
               restrictedFolder: true
@@ -311,9 +296,6 @@ export async function removeUserAccessRole(formData: FormData) {
         accessRole: {
           include: {
             mappings: {
-              where: {
-                restrictedFolderId: null
-              },
               include: {
                 sharedDrive: true,
                 restrictedFolder: true
@@ -331,9 +313,6 @@ export async function removeUserAccessRole(formData: FormData) {
         role: {
           include: {
             mappings: {
-              where: {
-                restrictedFolderId: null
-              },
               include: {
                 sharedDrive: true,
                 restrictedFolder: true

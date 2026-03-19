@@ -16,4 +16,8 @@ export class MockDriveProvider implements DriveProvider {
       name
     };
   }
+
+  async ensureFolderGroupAccess(_folderPath: string, _groupEmail: string, _role: string): Promise<void> {}
+
+  async ensureFolderUserAccess(_folderPath: string, _userEmail: string, _role: string): Promise<void> {}
 }

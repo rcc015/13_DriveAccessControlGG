@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { getDirectoryProvider } from "@/lib/google/provider-factory";
-import type { DirectoryProvider } from "@/lib/google/types";
+import { getDriveProvider } from "@/lib/google/provider-factory";
+import type { DirectoryProvider, DriveProvider } from "@/lib/google/types";
 import { AuditLogService } from "@/lib/services/audit-log-service";
 
 interface MembershipChangeInput {
@@ -15,14 +16,16 @@ interface MembershipChangeInput {
 export class GroupMembershipService {
   constructor(
     private directory: DirectoryProvider = getDirectoryProvider(),
+    private drive: DriveProvider = getDriveProvider(),
     private auditLog = new AuditLogService()
   ) {}
 
   async addUserToGroup(input: MembershipChangeInput) {
     const userId = await this.resolveUserId(input.userEmail);
-    const groupMappingId = await this.resolveGroupMappingId(input);
+    const mapping = await this.resolveGroupMapping(input);
 
     await this.directory.addGroupMember(input.groupEmail, input.userEmail);
+    await this.ensureRestrictedFolderGroupAccess(input.restrictedFolderPath, input.groupEmail, mapping.accessLevel);
 
     await this.auditLog.record({
       actorEmail: input.actorEmail,
@@ -35,11 +38,11 @@ export class GroupMembershipService {
       notes: input.reason
     });
 
-    return this.upsertAppRoleMembership(userId, groupMappingId);
+    return this.upsertAppRoleMembership(userId, mapping.id);
   }
 
   async removeUserFromGroup(input: MembershipChangeInput) {
-    const groupMappingId = await this.resolveGroupMappingId(input);
+    const mapping = await this.resolveGroupMapping(input);
 
     await this.directory.removeGroupMember(input.groupEmail, input.userEmail);
 
@@ -57,7 +60,7 @@ export class GroupMembershipService {
     return prisma.groupMembership.updateMany({
       where: {
         user: { email: input.userEmail },
-        groupMappingId,
+        groupMappingId: mapping.id,
         revokedAt: null
       },
       data: {
@@ -69,9 +72,10 @@ export class GroupMembershipService {
 
   async addUserToAccessRoleGroup(input: MembershipChangeInput) {
     const userId = await this.resolveUserId(input.userEmail);
-    const accessRoleMappingId = await this.resolveAccessRoleMappingId(input);
+    const mapping = await this.resolveAccessRoleMapping(input);
 
     await this.directory.addGroupMember(input.groupEmail, input.userEmail);
+    await this.ensureRestrictedFolderGroupAccess(input.restrictedFolderPath, input.groupEmail, mapping.accessLevel);
 
     await this.auditLog.record({
       actorEmail: input.actorEmail,
@@ -84,11 +88,11 @@ export class GroupMembershipService {
       notes: input.reason
     });
 
-    return this.upsertAccessRoleMembership(userId, accessRoleMappingId);
+    return this.upsertAccessRoleMembership(userId, mapping.id);
   }
 
   async removeUserFromAccessRoleGroup(input: MembershipChangeInput) {
-    const accessRoleMappingId = await this.resolveAccessRoleMappingId(input);
+    const mapping = await this.resolveAccessRoleMapping(input);
 
     await this.directory.removeGroupMember(input.groupEmail, input.userEmail);
 
@@ -106,7 +110,7 @@ export class GroupMembershipService {
     return prisma.groupMembership.updateMany({
       where: {
         user: { email: input.userEmail },
-        accessRoleMappingId,
+        accessRoleMappingId: mapping.id,
         revokedAt: null
       },
       data: {
@@ -129,7 +133,7 @@ export class GroupMembershipService {
     return user.id;
   }
 
-  private async resolveGroupMappingId(input: Pick<
+  private async resolveGroupMapping(input: Pick<
     MembershipChangeInput,
     "groupEmail" | "sharedDriveName" | "restrictedFolderPath"
   >) {
@@ -151,10 +155,10 @@ export class GroupMembershipService {
       );
     }
 
-    return mapping.id;
+    return mapping;
   }
 
-  private async resolveAccessRoleMappingId(input: Pick<
+  private async resolveAccessRoleMapping(input: Pick<
     MembershipChangeInput,
     "groupEmail" | "sharedDriveName" | "restrictedFolderPath"
   >) {
@@ -176,7 +180,19 @@ export class GroupMembershipService {
       );
     }
 
-    return mapping.id;
+    return mapping;
+  }
+
+  private async ensureRestrictedFolderGroupAccess(restrictedFolderPath: string | undefined, groupEmail: string, accessLevel: string) {
+    if (!restrictedFolderPath) {
+      return;
+    }
+
+    await this.drive.ensureFolderGroupAccess(
+      restrictedFolderPath,
+      groupEmail,
+      mapAccessLevelToDriveRole(accessLevel)
+    );
   }
 
   private async upsertAppRoleMembership(userId: string, groupMappingId: string) {
@@ -233,5 +249,20 @@ export class GroupMembershipService {
         source: "APP_MANAGED"
       }
     });
+  }
+}
+
+function mapAccessLevelToDriveRole(accessLevel: string) {
+  switch (accessLevel) {
+    case "MANAGER":
+      return "organizer";
+    case "CONTENT_MANAGER":
+    case "RESTRICTED":
+      return "fileOrganizer";
+    case "VIEWER":
+      return "reader";
+    case "CONTRIBUTOR":
+    default:
+      return "writer";
   }
 }

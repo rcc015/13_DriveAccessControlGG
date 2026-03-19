@@ -29,4 +29,6 @@ export interface DriveFolderRef {
 export interface DriveProvider {
   uploadReport(name: string, mimeType: string, content: Buffer): Promise<GeneratedFileRef>;
   createFolder(parentId: string, name: string): Promise<DriveFolderRef>;
+  ensureFolderGroupAccess(folderPath: string, groupEmail: string, role: string): Promise<void>;
+  ensureFolderUserAccess(folderPath: string, userEmail: string, role: string): Promise<void>;
 }

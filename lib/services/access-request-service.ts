@@ -1,8 +1,13 @@
 import { prisma } from "@/lib/db/prisma";
+import { getDriveProvider } from "@/lib/google/provider-factory";
+import type { DriveProvider } from "@/lib/google/types";
 import { AuditLogService } from "@/lib/services/audit-log-service";
 
 export class AccessRequestService {
-  constructor(private auditLog = new AuditLogService()) {}
+  constructor(
+    private drive: DriveProvider = getDriveProvider(),
+    private auditLog = new AuditLogService()
+  ) {}
 
   async createRequest(input: {
     requesterEmail: string;
@@ -52,6 +57,10 @@ export class AccessRequestService {
   }) {
     const updated = await prisma.accessRequest.update({
       where: { id: input.requestId },
+      include: {
+        user: true,
+        restrictedFolder: true
+      },
       data: {
         status: input.decision,
         approverEmail: input.actorEmail,
@@ -59,6 +68,10 @@ export class AccessRequestService {
         decidedAt: new Date()
       }
     });
+
+    if (input.decision === "APPROVED" && updated.restrictedFolder?.path) {
+      await this.drive.ensureFolderUserAccess(updated.restrictedFolder.path, updated.user.email, "writer");
+    }
 
     await this.auditLog.record({
       actorEmail: input.actorEmail,

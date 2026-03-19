@@ -41,19 +41,57 @@ export class GoogleDirectoryProvider implements DirectoryProvider {
   }
 
   async addGroupMember(groupKey: string, email: string) {
-    await this.client.members.insert({
-      groupKey,
-      requestBody: {
-        email,
-        role: "MEMBER"
+    try {
+      await this.client.members.insert({
+        groupKey,
+        requestBody: {
+          email,
+          role: "MEMBER"
+        }
+      });
+    } catch (error) {
+      if (isAlreadyExistsError(error)) {
+        return;
       }
-    });
+
+      throw error;
+    }
   }
 
   async removeGroupMember(groupKey: string, memberKey: string) {
-    await this.client.members.delete({
-      groupKey,
-      memberKey
-    });
+    try {
+      await this.client.members.delete({
+        groupKey,
+        memberKey
+      });
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        return;
+      }
+
+      throw error;
+    }
   }
+}
+
+function isAlreadyExistsError(error: unknown) {
+  return getGoogleStatus(error) === 409;
+}
+
+function isNotFoundError(error: unknown) {
+  return getGoogleStatus(error) === 404;
+}
+
+function getGoogleStatus(error: unknown) {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+
+  const maybeStatus = (error as { status?: number }).status;
+  if (typeof maybeStatus === "number") {
+    return maybeStatus;
+  }
+
+  const maybeResponseStatus = (error as { response?: { status?: number } }).response?.status;
+  return typeof maybeResponseStatus === "number" ? maybeResponseStatus : undefined;
 }

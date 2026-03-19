@@ -50,4 +50,147 @@ export class GoogleDriveProvider implements DriveProvider {
 
     return response.data;
   }
+
+  async ensureFolderGroupAccess(folderPath: string, groupEmail: string, role: string) {
+    const folderId = await this.resolveFolderIdByPath(folderPath);
+    await this.ensurePermission(folderId, "group", groupEmail, role);
+  }
+
+  async ensureFolderUserAccess(folderPath: string, userEmail: string, role: string) {
+    const folderId = await this.resolveFolderIdByPath(folderPath);
+    await this.ensurePermission(folderId, "user", userEmail, role);
+  }
+
+  private async ensurePermission(fileId: string, type: "group" | "user", emailAddress: string, role: string) {
+    const permissions = await this.client.permissions.list({
+      fileId,
+      supportsAllDrives: true,
+      fields: "permissions(id,emailAddress,type,role)"
+    });
+
+    const existing = (permissions.data.permissions ?? []).find(
+      (permission) => permission.type === type && permission.emailAddress === emailAddress
+    );
+
+    if (!existing?.id) {
+      await this.client.permissions.create({
+        fileId,
+        supportsAllDrives: true,
+        sendNotificationEmail: false,
+        requestBody: {
+          type,
+          role,
+          emailAddress
+        }
+      });
+      return;
+    }
+
+    if (existing.role === role) {
+      return;
+    }
+
+    await this.client.permissions.update({
+      fileId,
+      permissionId: existing.id,
+      supportsAllDrives: true,
+      requestBody: { role }
+    });
+  }
+
+  private async resolveFolderIdByPath(path: string) {
+    const segments = path
+      .split(" / ")
+      .map((segment) => segment.trim())
+      .filter(Boolean);
+
+    if (segments.length < 2) {
+      throw new Error(`Restricted folder path is invalid: ${path}`);
+    }
+
+    const [sharedDriveName, ...folderSegments] = segments;
+    const driveId = await this.resolveDriveIdByName(sharedDriveName);
+
+    let parentId = driveId;
+
+    for (let index = 0; index < folderSegments.length; index += 1) {
+      const segment = folderSegments[index];
+      const folderId = await this.findFolderIdInDrive(driveId, parentId, segment, index === 0);
+
+      if (!folderId) {
+        throw new Error(`Google Drive folder not found for restricted path: ${path}`);
+      }
+
+      parentId = folderId;
+    }
+
+    return parentId;
+  }
+
+  private async resolveDriveIdByName(sharedDriveName: string) {
+    const response = await this.client.drives.list({
+      q: `name = '${escapeDriveQueryValue(sharedDriveName)}'`,
+      useDomainAdminAccess: true,
+      pageSize: 10
+    });
+
+    const drive = (response.data.drives ?? []).find((candidate) => candidate.name === sharedDriveName);
+
+    if (!drive?.id) {
+      throw new Error(`Shared Drive not found in Google Drive: ${sharedDriveName}`);
+    }
+
+    return drive.id;
+  }
+
+  private async findFolderIdInDrive(
+    driveId: string,
+    parentId: string,
+    folderName: string,
+    allowTopLevelFallback: boolean
+  ) {
+    const exactMatch = await this.client.files.list({
+      corpora: "drive",
+      driveId,
+      includeItemsFromAllDrives: true,
+      supportsAllDrives: true,
+      pageSize: 10,
+      q: [
+        `name = '${escapeDriveQueryValue(folderName)}'`,
+        "mimeType = 'application/vnd.google-apps.folder'",
+        `'${parentId}' in parents`,
+        "trashed = false"
+      ].join(" and "),
+      fields: "files(id,name)"
+    });
+
+    const exactFolder = exactMatch.data.files?.[0];
+    if (exactFolder?.id) {
+      return exactFolder.id;
+    }
+
+    if (!allowTopLevelFallback) {
+      return null;
+    }
+
+    const fallback = await this.client.files.list({
+      corpora: "drive",
+      driveId,
+      includeItemsFromAllDrives: true,
+      supportsAllDrives: true,
+      pageSize: 10,
+      q: [
+        `name = '${escapeDriveQueryValue(folderName)}'`,
+        "mimeType = 'application/vnd.google-apps.folder'",
+        "trashed = false"
+      ].join(" and "),
+      fields: "files(id,name,parents)"
+    });
+
+    return fallback.data.files?.[0]?.id ?? null;
+  }
+}
+
+function escapeDriveQueryValue(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
