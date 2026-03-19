@@ -14,31 +14,31 @@ const reportCatalog: Array<{
   {
     type: "GROUP_MEMBERSHIP_SNAPSHOT",
     name: "Group Membership Snapshot",
-    format: "JSON",
+    format: "CSV",
     storage: "Drive + DB link"
   },
   {
     type: "QUARTERLY_ACCESS_REVIEW",
     name: "Quarterly Access Review",
-    format: "JSON",
+    format: "CSV",
     storage: "Drive + DB link"
   },
   {
     type: "RESTRICTED_ACCESS_EXCEPTIONS",
     name: "Restricted Access Exceptions",
-    format: "JSON",
+    format: "CSV",
     storage: "Drive + DB link"
   },
   {
     type: "PERMISSION_MATRIX",
     name: "Permission Matrix",
-    format: "JSON",
+    format: "CSV",
     storage: "Drive + DB link"
   },
   {
     type: "ACCESS_CHANGE_LOG",
     name: "Access Change Log",
-    format: "JSON",
+    format: "CSV",
     storage: "Drive + DB link"
   }
 ];
@@ -69,8 +69,8 @@ export default async function ReportsPage() {
         </div>
         <h2>Reports and archival</h2>
         <p>
-          Reports are generated locally, uploaded automatically to Google Drive, and registered with
-          file ID and URL for evidence traceability.
+          Reports are generated as readable CSV files, uploaded automatically to Google Drive, and
+          registered with file ID and URL for evidence traceability.
         </p>
       </section>
 

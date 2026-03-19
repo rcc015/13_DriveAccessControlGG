@@ -1,0 +1,39 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_IMAGE}
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_IMAGE}
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE_NAME}
+      - --image=${_IMAGE}
+      - --region=${_REGION}
+      - --platform=managed
+      - --service-account=${_RUNTIME_SERVICE_ACCOUNT}
+      - --allow-unauthenticated
+      - --port=8080
+      - --add-cloudsql-instances=${_CLOUDSQL_INSTANCE}
+      - --set-env-vars=NODE_ENV=production,APP_BASE_URL=${_APP_BASE_URL}
+      - --set-secrets=AUTH_MODE=AUTH_MODE:latest,GOOGLE_INTEGRATION_MODE=GOOGLE_INTEGRATION_MODE:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,GOOGLE_REDIRECT_URI=GOOGLE_REDIRECT_URI:latest,GOOGLE_HOSTED_DOMAIN=GOOGLE_HOSTED_DOMAIN:latest,GOOGLE_IMPERSONATED_ADMIN=GOOGLE_IMPERSONATED_ADMIN:latest,GOOGLE_SERVICE_ACCOUNT_JSON=GOOGLE_SERVICE_ACCOUNT_JSON:latest,GOOGLE_REPORTS_FOLDER_ID=GOOGLE_REPORTS_FOLDER_ID:latest,GOOGLE_REPORTS_SHARED_DRIVE_ID=GOOGLE_REPORTS_SHARED_DRIVE_ID:latest,DATABASE_URL=DATABASE_URL:latest,SESSION_SECRET=SESSION_SECRET:latest,ALLOWED_ADMIN_EMAILS=ALLOWED_ADMIN_EMAILS:latest,ADMIN_ROLE_OVERRIDES=ADMIN_ROLE_OVERRIDES:latest
+
+images:
+  - ${_IMAGE}
+
+substitutions:
+  _REGION: us-central1
+  _SERVICE_NAME: drive-access-console-staging
+  _IMAGE: us-central1-docker.pkg.dev/hidden-outrider-390502/drive-access-console/app:latest
+  _RUNTIME_SERVICE_ACCOUNT: drive-access-console-runtime@hidden-outrider-390502.iam.gserviceaccount.com
+  _CLOUDSQL_INSTANCE: hidden-outrider-390502:us-central1:drive-access-console-staging
+  _APP_BASE_URL: https://drive-access-console-staging-j6hkbom3aa-uc.a.run.app

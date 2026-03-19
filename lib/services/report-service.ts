@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { getDriveProvider } from "@/lib/google/provider-factory";
 import type { DriveProvider } from "@/lib/google/types";
-import { buildJsonReport } from "@/lib/reports/report-builder";
+import { buildCsvReport } from "@/lib/reports/report-builder";
 import { AuditLogService } from "@/lib/services/audit-log-service";
 import type { ReportType } from "@/types/domain";
 
@@ -13,7 +13,7 @@ export class ReportService {
 
   async generateAndArchive(reportType: ReportType, actorEmail: string) {
     const payload = await this.getPayload(reportType);
-    const built = buildJsonReport(reportType, payload);
+    const built = buildCsvReport(reportType, payload);
     const uploaded = await this.drive.uploadReport(built.fileName, built.mimeType, built.content);
 
     const report = await prisma.generatedReport.create({
@@ -45,7 +45,15 @@ export class ReportService {
       case "GROUP_MEMBERSHIP_SNAPSHOT":
         return prisma.groupMembership.findMany({
           where: { revokedAt: null },
-          include: { user: true, groupMapping: true }
+          include: {
+            user: true,
+            groupMapping: {
+              include: { role: true, sharedDrive: true, restrictedFolder: true }
+            },
+            accessRoleMapping: {
+              include: { accessRole: true, sharedDrive: true, restrictedFolder: true }
+            }
+          }
         });
       case "QUARTERLY_ACCESS_REVIEW":
         return prisma.accessReview.findMany({
@@ -57,9 +65,14 @@ export class ReportService {
           include: { user: true, restrictedFolder: true }
         });
       case "PERMISSION_MATRIX":
-        return prisma.groupMapping.findMany({
-          include: { role: true, sharedDrive: true, restrictedFolder: true }
-        });
+        return [
+          ...(await prisma.groupMapping.findMany({
+            include: { role: true, sharedDrive: true, restrictedFolder: true }
+          })),
+          ...(await prisma.accessRoleMapping.findMany({
+            include: { accessRole: true, sharedDrive: true, restrictedFolder: true }
+          }))
+        ];
       case "ACCESS_CHANGE_LOG":
         return prisma.auditLog.findMany({
           orderBy: { happenedAt: "desc" },

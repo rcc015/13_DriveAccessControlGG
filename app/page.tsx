@@ -1,5 +1,7 @@
 import { requireSession } from "@/lib/auth/session";
 
+export const dynamic = "force-dynamic";
+
 function formatGroupLabel(groupEmail: string) {
   return groupEmail.replace("@conceivable.life", "");
 }
