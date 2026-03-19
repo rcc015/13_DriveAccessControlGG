@@ -1,4 +1,5 @@
 import { requireSession } from "@/lib/auth/session";
+import { prisma } from "@/lib/db/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -6,49 +7,113 @@ function formatGroupLabel(groupEmail: string) {
   return groupEmail.replace("@conceivable.life", "");
 }
 
-const kpis = [
-  { label: "Active group memberships", value: "184", detail: "Managed through mapped Google Groups" },
-  { label: "Restricted exceptions", value: "12", detail: "All time-bound and reviewable" },
-  { label: "Open quarterly review items", value: "37", detail: "Pending keep/remove decisions" }
-];
-
-const recentEvents = [
-  "Quarterly review Q1-2026 opened for Operational and Support drives.",
-  "Restricted Finance access granted with expiration and approver reference.",
-  "Permission Matrix report uploaded and linked in the evidence register."
-];
-
-const driveCoverage: [string, string[], string][] = [
-  [
-    "01_QMS_Working",
-    ["grp-quality-owner@conceivable.life", "grp-quality-editor@conceivable.life"],
-    "1 restricted branch"
-  ],
-  [
-    "02_Strategic_Working",
-    ["grp-strategic-owner@conceivable.life", "grp-strategic-editor@conceivable.life"],
-    "0 restricted branches"
-  ],
-  [
-    "03_Operational_Working",
-    ["grp-operational-owner@conceivable.life", "grp-operational-contributor@conceivable.life"],
-    "Template automation enabled"
-  ],
-  [
-    "04_Support_Working",
-    [
-      "grp-support-owner@conceivable.life",
-      "grp-hr@conceivable.life",
-      "grp-finance@conceivable.life",
-      "grp-legal@conceivable.life",
-      "grp-it@conceivable.life"
-    ],
-    "3 restricted branches"
-  ]
-];
+function formatAuditPulse(entry: {
+  actionType: string;
+  targetUserEmail: string | null;
+  targetGroupEmail: string | null;
+  targetDriveName: string | null;
+  notes: string | null;
+  happenedAt: Date;
+}) {
+  const when = entry.happenedAt.toISOString().slice(0, 10);
+  const targetUser = entry.targetUserEmail ? ` for ${entry.targetUserEmail}` : "";
+  const targetGroup = entry.targetGroupEmail ? ` via ${formatGroupLabel(entry.targetGroupEmail)}` : "";
+  const targetDrive = entry.targetDriveName ? ` on ${entry.targetDriveName}` : "";
+  const details = entry.notes ? ` ${entry.notes}` : "";
+  return `${when}: ${entry.actionType}${targetUser}${targetGroup}${targetDrive}.${details}`.trim();
+}
 
 export default async function HomePage() {
   await requireSession();
+
+  const now = new Date();
+
+  const [activeMemberships, activeRestrictedExceptions, openReviewItems, sharedDrives, groupMappings, accessRoleMappings, auditLogs] =
+    await Promise.all([
+      prisma.groupMembership.count({
+        where: { revokedAt: null }
+      }),
+      prisma.accessRequest.count({
+        where: {
+          restrictedFolderId: { not: null },
+          status: "APPROVED",
+          OR: [{ endDate: null }, { endDate: { gte: now } }]
+        }
+      }),
+      prisma.accessReviewItem.count({
+        where: {
+          decision: null,
+          accessReview: {
+            status: "OPEN"
+          }
+        }
+      }),
+      prisma.sharedDrive.findMany({
+        orderBy: { name: "asc" },
+        include: {
+          folders: {
+            where: { isRestricted: true }
+          }
+        }
+      }),
+      prisma.groupMapping.findMany({
+        include: { sharedDrive: true }
+      }),
+      prisma.accessRoleMapping.findMany({
+        include: { sharedDrive: true }
+      }),
+      prisma.auditLog.findMany({
+        orderBy: { happenedAt: "desc" },
+        take: 3
+      })
+    ]);
+
+  const kpis = [
+    {
+      label: "Active group memberships",
+      value: String(activeMemberships),
+      detail: "Managed through mapped Google Groups"
+    },
+    {
+      label: "Restricted exceptions",
+      value: String(activeRestrictedExceptions),
+      detail: "Approved and still active"
+    },
+    {
+      label: "Open quarterly review items",
+      value: String(openReviewItems),
+      detail: "Pending keep/remove decisions"
+    }
+  ];
+
+  const driveCoverage = sharedDrives.map((drive) => {
+    const groups = new Set<string>();
+
+    for (const mapping of groupMappings) {
+      if (mapping.sharedDriveId === drive.id) {
+        groups.add(mapping.groupEmail);
+      }
+    }
+
+    for (const mapping of accessRoleMappings) {
+      if (mapping.sharedDriveId === drive.id) {
+        groups.add(mapping.groupEmail);
+      }
+    }
+
+    const restrictedBranchCount = drive.folders.length;
+    const notes =
+      restrictedBranchCount === 0
+        ? "0 restricted branches"
+        : `${restrictedBranchCount} restricted ${restrictedBranchCount === 1 ? "branch" : "branches"}`;
+
+    return [drive.name, Array.from(groups).sort(), notes] as const;
+  });
+
+  const recentEvents =
+    auditLogs.length > 0
+      ? auditLogs.map(formatAuditPulse)
+      : ["No recent audit events captured yet in this environment."];
 
   return (
     <div className="hero">
