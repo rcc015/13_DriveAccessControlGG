@@ -60,6 +60,10 @@ export default async function GoogleAccessMonitorPage() {
       items.push(`${row.resourceName}: direct user access for ${user}.`);
     }
 
+    if (row.errorMessage) {
+      items.push(`${row.resourceName}: ${row.errorMessage}`);
+    }
+
     return items;
   });
 
@@ -127,7 +131,7 @@ export default async function GoogleAccessMonitorPage() {
                   <td>{row.resourceName}</td>
                   <td>{row.expectedGroups.map((group) => formatGroupLabel(group.email)).join(", ") || "None"}</td>
                   <td>{row.actualGroups.map((group) => formatGroupLabel(group.email)).join(", ") || "None"}</td>
-                  <td>{row.directUsers.join(", ") || "None"}</td>
+                  <td>{row.errorMessage ? row.errorMessage : row.directUsers.join(", ") || "None"}</td>
                   <td>
                     <span className={status.className}>{status.label}</span>
                   </td>
@@ -167,7 +171,7 @@ export default async function GoogleAccessMonitorPage() {
                   <td>{row.limitedAccess ? "Yes" : "No"}</td>
                   <td>{row.expectedGroups.map((group) => formatGroupLabel(group.email)).join(", ") || "None"}</td>
                   <td>{row.actualGroups.map((group) => formatGroupLabel(group.email)).join(", ") || "None"}</td>
-                  <td>{row.directUsers.join(", ") || "None"}</td>
+                  <td>{row.errorMessage ? row.errorMessage : row.directUsers.join(", ") || "None"}</td>
                   <td>
                     <span className={status.className}>{status.label}</span>
                   </td>

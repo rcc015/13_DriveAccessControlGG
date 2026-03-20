@@ -18,6 +18,7 @@ interface AccessComparisonRow {
   unexpectedGroups: string[];
   roleMismatches: string[];
   status: MonitorStatus;
+  errorMessage?: string;
 }
 
 interface RestrictedFolderComparisonRow extends AccessComparisonRow {
@@ -57,13 +58,17 @@ export class GoogleAccessMonitorService {
           }))
         );
 
-        const actualPrincipals = await this.drive.listSharedDrivePrincipals(drive.name);
-        return compareAccessState({
-          resourceName: drive.name,
-          expectedGroups,
-          actualPrincipals,
-          limitedAccess: true
-        });
+        try {
+          const actualPrincipals = await this.drive.listSharedDrivePrincipals(drive.name);
+          return compareAccessState({
+            resourceName: drive.name,
+            expectedGroups,
+            actualPrincipals,
+            limitedAccess: true
+          });
+        } catch (error) {
+          return failedAccessState(drive.name, expectedGroups, error);
+        }
       })
     );
 
@@ -79,13 +84,20 @@ export class GoogleAccessMonitorService {
           }))
         );
 
-        const actual = await this.drive.getRestrictedFolderAccess(folder.path);
-        return compareAccessState({
-          resourceName: folder.path,
-          expectedGroups,
-          actualPrincipals: actual.principals,
-          limitedAccess: actual.limitedAccess
-        });
+        try {
+          const actual = await this.drive.getRestrictedFolderAccess(folder.path);
+          return compareAccessState({
+            resourceName: folder.path,
+            expectedGroups,
+            actualPrincipals: actual.principals,
+            limitedAccess: actual.limitedAccess
+          });
+        } catch (error) {
+          return {
+            ...failedAccessState(folder.path, expectedGroups, error),
+            limitedAccess: false
+          };
+        }
       })
     );
 
@@ -173,6 +185,20 @@ function compareAccessState(input: {
     roleMismatches,
     status,
     limitedAccess: input.limitedAccess
+  };
+}
+
+function failedAccessState(resourceName: string, expectedGroups: ExpectedAccessEntry[], error: unknown): AccessComparisonRow {
+  return {
+    resourceName,
+    expectedGroups,
+    actualGroups: [],
+    directUsers: [],
+    missingGroups: [],
+    unexpectedGroups: [],
+    roleMismatches: [],
+    status: "UNEXPECTED",
+    errorMessage: error instanceof Error ? error.message : "Unknown Google Drive lookup error."
   };
 }
 
