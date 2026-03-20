@@ -199,7 +199,7 @@ export default async function GoogleIntegrationPage() {
           <div>
             <h3>Offboarding hygiene</h3>
             <p className="muted">
-              Detect inactive Directory users with RBAC-managed access and prepare cleanup.
+              Detect users who are no longer active in Google Workspace Directory and prepare RBAC cleanup.
             </p>
           </div>
           <span className="pill warn">Preview before apply</span>
@@ -237,7 +237,7 @@ export default async function GoogleIntegrationPage() {
                 <div>
                   <h3>Inactive users with managed access</h3>
                   <p className="muted">
-                    Only users outside the active Directory set and within <code>@conceivable.life</code> are included.
+                    Only users missing from the active Google Workspace Directory set and within <code>@conceivable.life</code> are included.
                   </p>
                 </div>
                 <span className="pill warn">{offboardingPreview.users.length}</span>
@@ -271,7 +271,7 @@ export default async function GoogleIntegrationPage() {
           <div>
             <h3>Active employee sync</h3>
             <p className="muted">
-              Sync Directory active users into <code>{getAllEmployeesGroupEmail()}</code>.
+              Sync users currently active in Google Workspace Directory into <code>{getAllEmployeesGroupEmail()}</code>.
             </p>
           </div>
           <span className="pill">Directory-backed</span>
@@ -282,7 +282,7 @@ export default async function GoogleIntegrationPage() {
           <>
             <div className="stat-strip">
               <article className="panel stat-card">
-                <span>Active Directory users</span>
+                <span>Active Workspace users</span>
                 <strong>{activeEmployeePreview.activeCount}</strong>
               </article>
               <article className="panel stat-card">
@@ -303,7 +303,7 @@ export default async function GoogleIntegrationPage() {
                 <div className="section-head">
                   <div>
                     <h3>Preview adds</h3>
-                    <p className="muted">Users active in Directory but missing from the group.</p>
+                    <p className="muted">Users active in Google Workspace Directory but missing from the group.</p>
                   </div>
                   <span className="pill">{activeEmployeePreview.addEmails.length}</span>
                 </div>
@@ -319,7 +319,7 @@ export default async function GoogleIntegrationPage() {
                 <div className="section-head">
                   <div>
                     <h3>Preview removals</h3>
-                    <p className="muted">Users in the group but no longer active in Directory.</p>
+                    <p className="muted">Users in the group but no longer active in Google Workspace Directory.</p>
                   </div>
                   <span className="pill warn">{activeEmployeePreview.removeEmails.length}</span>
                 </div>
