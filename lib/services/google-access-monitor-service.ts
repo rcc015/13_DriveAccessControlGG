@@ -64,7 +64,8 @@ export class GoogleAccessMonitorService {
             resourceName: drive.name,
             expectedGroups,
             actualPrincipals,
-            limitedAccess: true
+            limitedAccess: true,
+            includeInheritedGroups: true
           });
         } catch (error) {
           return failedAccessState(drive.name, expectedGroups, error);
@@ -90,7 +91,8 @@ export class GoogleAccessMonitorService {
             resourceName: folder.path,
             expectedGroups,
             actualPrincipals: actual.principals,
-            limitedAccess: actual.limitedAccess
+            limitedAccess: actual.limitedAccess,
+            includeInheritedGroups: false
           });
         } catch (error) {
           return {
@@ -132,10 +134,17 @@ function compareAccessState(input: {
   expectedGroups: ExpectedAccessEntry[];
   actualPrincipals: DrivePrincipalRef[];
   limitedAccess: boolean;
+  includeInheritedGroups?: boolean;
 }): RestrictedFolderComparisonRow {
+  const includeInheritedGroups = input.includeInheritedGroups ?? true;
   const actualGroups = collectExpectedGroups(
     input.actualPrincipals
-      .filter((principal) => principal.type === "group" && principal.emailAddress)
+      .filter(
+        (principal) =>
+          principal.type === "group" &&
+          principal.emailAddress &&
+          (includeInheritedGroups || !principal.inherited)
+      )
       .map((principal) => ({
         email: principal.emailAddress ?? "",
         role: principal.role
