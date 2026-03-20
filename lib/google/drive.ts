@@ -51,6 +51,11 @@ export class GoogleDriveProvider implements DriveProvider {
     return response.data;
   }
 
+  async ensureSharedDriveGroupAccess(sharedDriveName: string, groupEmail: string, role: string) {
+    const driveId = await this.resolveDriveIdByName(sharedDriveName);
+    await this.ensurePermission(driveId, "group", groupEmail, role);
+  }
+
   async ensureFolderGroupAccess(folderPath: string, groupEmail: string, role: string) {
     const folderId = await this.resolveFolderIdByPath(folderPath);
     await this.ensurePermission(folderId, "group", groupEmail, role);
@@ -59,6 +64,27 @@ export class GoogleDriveProvider implements DriveProvider {
   async ensureFolderUserAccess(folderPath: string, userEmail: string, role: string) {
     const folderId = await this.resolveFolderIdByPath(folderPath);
     await this.ensurePermission(folderId, "user", userEmail, role);
+  }
+
+  async removeSharedDrivePrincipal(sharedDriveName: string, principalEmail: string) {
+    const driveId = await this.resolveDriveIdByName(sharedDriveName);
+    await this.removePermissionByEmail(driveId, principalEmail);
+  }
+
+  async removeFolderPrincipal(folderPath: string, principalEmail: string) {
+    const folderId = await this.resolveFolderIdByPath(folderPath);
+    await this.removePermissionByEmail(folderId, principalEmail);
+  }
+
+  async enableLimitedAccess(folderPath: string) {
+    const folderId = await this.resolveFolderIdByPath(folderPath);
+    await this.client.files.update({
+      fileId: folderId,
+      supportsAllDrives: true,
+      requestBody: {
+        inheritedPermissionsDisabled: true
+      } as never
+    });
   }
 
   async listSharedDrivePrincipals(sharedDriveName: string): Promise<DrivePrincipalRef[]> {
@@ -136,6 +162,21 @@ export class GoogleDriveProvider implements DriveProvider {
       displayName: permission.displayName ?? null,
       inherited: (permission.permissionDetails ?? []).every((detail) => detail.inherited === true)
     }));
+  }
+
+  private async removePermissionByEmail(fileId: string, principalEmail: string) {
+    const permissions = await this.listPermissions(fileId);
+    const existing = permissions.find((permission) => permission.emailAddress === principalEmail && !permission.inherited);
+
+    if (!existing?.id) {
+      return;
+    }
+
+    await this.client.permissions.delete({
+      fileId,
+      permissionId: existing.id,
+      supportsAllDrives: true
+    });
   }
 
   private async resolveFolderIdByPath(path: string) {

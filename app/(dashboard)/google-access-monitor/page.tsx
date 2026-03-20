@@ -2,6 +2,7 @@ import { AccessDenied } from "@/components/dashboard/access-denied";
 import { adminAndReadRoles, hasAnyRole } from "@/lib/auth/authorization";
 import { requireSession } from "@/lib/auth/session";
 import { GoogleAccessMonitorService } from "@/lib/services/google-access-monitor-service";
+import { applyReconcile } from "@/app/(dashboard)/google-access-monitor/actions";
 
 function formatGroupLabel(groupEmail: string) {
   return groupEmail.replace("@conceivable.life", "");
@@ -110,7 +111,14 @@ export default async function GoogleAccessMonitorPage() {
             <h3>Reconcile preview</h3>
             <p className="muted">Proposed corrective actions based on the current drift snapshot.</p>
           </div>
-          <span className="pill">Preview only</span>
+          <div className="inline-actions">
+            <span className="pill">Preview only</span>
+            <form action={applyReconcile}>
+              <button className="button-ghost" type="submit" disabled={snapshot.reconcilePreview.summary.total === 0}>
+                Apply reconcile
+              </button>
+            </form>
+          </div>
         </div>
         <div className="stat-strip">
           <article className="panel stat-card">

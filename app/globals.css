@@ -489,6 +489,10 @@ th {
   gap: 8px;
 }
 
+.inline-actions form {
+  width: auto;
+}
+
 .panel form {
   width: 100%;
 }

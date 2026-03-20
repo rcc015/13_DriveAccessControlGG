@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { getDriveProvider } from "@/lib/google/provider-factory";
+import { AuditLogService } from "@/lib/services/audit-log-service";
 import type { DrivePrincipalRef, DriveProvider } from "@/lib/google/types";
 
 type MonitorStatus = "ALIGNED" | "MISSING" | "UNEXPECTED" | "ROLE_MISMATCH" | "LIMITED_ACCESS_DISABLED";
@@ -7,6 +8,7 @@ const ALLOWED_DIRECT_USER_EXCEPTIONS = new Set(["rbac@conceivable.life"]);
 
 export interface ReconcilePreviewAction {
   resourceName: string;
+  resourceType: "DRIVE" | "RESTRICTED_FOLDER";
   kind:
     | "ADD_GROUP"
     | "REMOVE_GROUP"
@@ -18,6 +20,12 @@ export interface ReconcilePreviewAction {
   expectedRole?: string;
   actualRole?: string;
   summary: string;
+}
+
+export interface ReconcileApplyResult {
+  action: ReconcilePreviewAction;
+  status: "APPLIED" | "SKIPPED" | "FAILED";
+  message: string;
 }
 
 interface ExpectedAccessEntry {
@@ -42,7 +50,10 @@ interface RestrictedFolderComparisonRow extends AccessComparisonRow {
 }
 
 export class GoogleAccessMonitorService {
-  constructor(private drive: DriveProvider = getDriveProvider()) {}
+  constructor(
+    private drive: DriveProvider = getDriveProvider(),
+    private auditLog = new AuditLogService()
+  ) {}
 
   async getMonitorSnapshot() {
     const [sharedDrives, restrictedFolders, groupMappings, accessRoleMappings] = await Promise.all([
@@ -145,6 +156,133 @@ export class GoogleAccessMonitorService {
       }
     };
   }
+
+  async applyReconcilePreview(actorEmail: string) {
+    const snapshot = await this.getMonitorSnapshot();
+    const results: ReconcileApplyResult[] = [];
+
+    for (const action of snapshot.reconcilePreview.actions) {
+      if (action.kind === "MANUAL_REVIEW") {
+        results.push({
+          action,
+          status: "SKIPPED",
+          message: "Manual review action skipped."
+        });
+        continue;
+      }
+
+      try {
+        await this.applyAction(action);
+        results.push({
+          action,
+          status: "APPLIED",
+          message: action.summary
+        });
+
+        await this.auditLog.record({
+          actorEmail,
+          actionType: "RECONCILE_APPLY",
+          targetUserEmail: action.kind === "REMOVE_DIRECT_USER" ? action.principal : undefined,
+          targetGroupEmail:
+            action.kind === "ADD_GROUP" || action.kind === "REMOVE_GROUP" || action.kind === "UPDATE_ROLE"
+              ? action.principal
+              : undefined,
+          targetDriveName: action.resourceType === "DRIVE" ? action.resourceName : undefined,
+          targetFolderPath: action.resourceType === "RESTRICTED_FOLDER" ? action.resourceName : undefined,
+          result: "SUCCESS",
+          notes: action.summary,
+          metadata: {
+            kind: action.kind,
+            expectedRole: action.expectedRole ?? null,
+            actualRole: action.actualRole ?? null
+          }
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown reconcile error.";
+        results.push({
+          action,
+          status: "FAILED",
+          message
+        });
+
+        await this.auditLog.record({
+          actorEmail,
+          actionType: "RECONCILE_APPLY",
+          targetUserEmail: action.kind === "REMOVE_DIRECT_USER" ? action.principal : undefined,
+          targetGroupEmail:
+            action.kind === "ADD_GROUP" || action.kind === "REMOVE_GROUP" || action.kind === "UPDATE_ROLE"
+              ? action.principal
+              : undefined,
+          targetDriveName: action.resourceType === "DRIVE" ? action.resourceName : undefined,
+          targetFolderPath: action.resourceType === "RESTRICTED_FOLDER" ? action.resourceName : undefined,
+          result: "FAILED",
+          notes: action.summary,
+          metadata: {
+            kind: action.kind,
+            error: message,
+            expectedRole: action.expectedRole ?? null,
+            actualRole: action.actualRole ?? null
+          }
+        });
+      }
+    }
+
+    return {
+      results,
+      summary: {
+        applied: results.filter((result) => result.status === "APPLIED").length,
+        skipped: results.filter((result) => result.status === "SKIPPED").length,
+        failed: results.filter((result) => result.status === "FAILED").length
+      }
+    };
+  }
+
+  private async applyAction(action: ReconcilePreviewAction) {
+    switch (action.kind) {
+      case "ADD_GROUP":
+      case "UPDATE_ROLE":
+        if (!action.principal || !action.expectedRole) {
+          throw new Error("Reconcile action is missing group principal or expected role.");
+        }
+
+        if (action.resourceType === "DRIVE") {
+          await this.drive.ensureSharedDriveGroupAccess(action.resourceName, action.principal, action.expectedRole);
+          return;
+        }
+
+        await this.drive.ensureFolderGroupAccess(action.resourceName, action.principal, action.expectedRole);
+        return;
+      case "REMOVE_GROUP":
+        if (!action.principal) {
+          throw new Error("Reconcile action is missing group principal.");
+        }
+
+        if (action.resourceType === "DRIVE") {
+          await this.drive.removeSharedDrivePrincipal(action.resourceName, action.principal);
+          return;
+        }
+
+        await this.drive.removeFolderPrincipal(action.resourceName, action.principal);
+        return;
+      case "REMOVE_DIRECT_USER":
+        if (!action.principal) {
+          throw new Error("Reconcile action is missing user principal.");
+        }
+
+        if (action.resourceType === "DRIVE") {
+          await this.drive.removeSharedDrivePrincipal(action.resourceName, action.principal);
+          return;
+        }
+
+        await this.drive.removeFolderPrincipal(action.resourceName, action.principal);
+        return;
+      case "ENABLE_LIMITED_ACCESS":
+        await this.drive.enableLimitedAccess(action.resourceName);
+        return;
+      case "MANUAL_REVIEW":
+        return;
+    }
+  }
 }
 
 function buildReconcilePreview(
@@ -158,6 +296,7 @@ function buildReconcilePreview(
     if (row.status === "LIMITED_ACCESS_DISABLED") {
       actions.push({
         resourceName: row.resourceName,
+        resourceType: "RESTRICTED_FOLDER",
         kind: "ENABLE_LIMITED_ACCESS",
         summary: `Enable limited access on ${row.resourceName}.`
       });
@@ -167,6 +306,7 @@ function buildReconcilePreview(
       const { principal, role } = parseFormattedGroupRole(missingGroup);
       actions.push({
         resourceName: row.resourceName,
+        resourceType: row.resourceName.includes(" / ") ? "RESTRICTED_FOLDER" : "DRIVE",
         kind: "ADD_GROUP",
         principal,
         expectedRole: role,
@@ -178,6 +318,7 @@ function buildReconcilePreview(
       const { principal } = parseFormattedGroupRole(unexpectedGroup);
       actions.push({
         resourceName: row.resourceName,
+        resourceType: row.resourceName.includes(" / ") ? "RESTRICTED_FOLDER" : "DRIVE",
         kind: "REMOVE_GROUP",
         principal,
         summary: `Remove unexpected group ${principal} from ${row.resourceName}.`
@@ -187,9 +328,10 @@ function buildReconcilePreview(
     for (const roleMismatch of row.roleMismatches) {
       const match = roleMismatch.match(/^(.*): expected (.*), actual (.*)$/);
       if (!match) {
-        actions.push({
-          resourceName: row.resourceName,
-          kind: "MANUAL_REVIEW",
+          actions.push({
+            resourceName: row.resourceName,
+            resourceType: row.resourceName.includes(" / ") ? "RESTRICTED_FOLDER" : "DRIVE",
+            kind: "MANUAL_REVIEW",
           summary: `Review role mismatch on ${row.resourceName}: ${roleMismatch}.`
         });
         continue;
@@ -198,6 +340,7 @@ function buildReconcilePreview(
       const [, principal, expectedRole, actualRole] = match;
       actions.push({
         resourceName: row.resourceName,
+        resourceType: row.resourceName.includes(" / ") ? "RESTRICTED_FOLDER" : "DRIVE",
         kind: "UPDATE_ROLE",
         principal,
         expectedRole,
@@ -209,6 +352,7 @@ function buildReconcilePreview(
     for (const user of row.directUsers) {
       actions.push({
         resourceName: row.resourceName,
+        resourceType: row.resourceName.includes(" / ") ? "RESTRICTED_FOLDER" : "DRIVE",
         kind: "REMOVE_DIRECT_USER",
         principal: user,
         summary: `Remove direct user ${user} from ${row.resourceName}.`
@@ -218,6 +362,7 @@ function buildReconcilePreview(
     if (row.errorMessage) {
       actions.push({
         resourceName: row.resourceName,
+        resourceType: row.resourceName.includes(" / ") ? "RESTRICTED_FOLDER" : "DRIVE",
         kind: "MANUAL_REVIEW",
         summary: `Manual review required for ${row.resourceName}: ${row.errorMessage}`
       });

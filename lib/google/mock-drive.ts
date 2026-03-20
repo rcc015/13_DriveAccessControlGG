@@ -17,9 +17,17 @@ export class MockDriveProvider implements DriveProvider {
     };
   }
 
+  async ensureSharedDriveGroupAccess(_sharedDriveName: string, _groupEmail: string, _role: string): Promise<void> {}
+
   async ensureFolderGroupAccess(_folderPath: string, _groupEmail: string, _role: string): Promise<void> {}
 
   async ensureFolderUserAccess(_folderPath: string, _userEmail: string, _role: string): Promise<void> {}
+
+  async removeSharedDrivePrincipal(_sharedDriveName: string, _principalEmail: string): Promise<void> {}
+
+  async removeFolderPrincipal(_folderPath: string, _principalEmail: string): Promise<void> {}
+
+  async enableLimitedAccess(_folderPath: string): Promise<void> {}
 
   async listSharedDrivePrincipals(_sharedDriveName: string): Promise<DrivePrincipalRef[]> {
     return [];
