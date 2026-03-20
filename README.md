@@ -56,10 +56,10 @@ Only approved restricted-folder exception workflows may create special-case assi
 
 ## Restricted folders in scope
 
-- `01_QMS_Working / 00_Quality / 08_QMS_Governance`
-- `04_Support_Working / 03_SupportProcesses / 01_HumanResources`
-- `04_Support_Working / 03_SupportProcesses / 05_Finance`
-- `04_Support_Working / 03_SupportProcesses / 06_Legal`
+- `01_QMS_Working / 08_QMS_Governance`
+- `04_Support_Working / 01_HumanResources`
+- `04_Support_Working / 05_Finance`
+- `04_Support_Working / 06_Legal`
 
 ## Main use cases
 

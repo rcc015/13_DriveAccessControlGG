@@ -373,11 +373,25 @@ async function main() {
   }
 
   const restrictedFolders = [
-    ["01_QMS_Working", "08_QMS_Governance", "01_QMS_Working / 00_Quality / 08_QMS_Governance"],
-    ["04_Support_Working", "01_HumanResources", "04_Support_Working / 03_SupportProcesses / 01_HumanResources"],
-    ["04_Support_Working", "05_Finance", "04_Support_Working / 03_SupportProcesses / 05_Finance"],
-    ["04_Support_Working", "06_Legal", "04_Support_Working / 03_SupportProcesses / 06_Legal"]
+    ["01_QMS_Working", "08_QMS_Governance", "01_QMS_Working / 08_QMS_Governance"],
+    ["04_Support_Working", "01_HumanResources", "04_Support_Working / 01_HumanResources"],
+    ["04_Support_Working", "05_Finance", "04_Support_Working / 05_Finance"],
+    ["04_Support_Working", "06_Legal", "04_Support_Working / 06_Legal"]
   ] as const;
+
+  const legacyRestrictedFolderPaths = [
+    ["01_QMS_Working / 00_Quality / 08_QMS_Governance", "01_QMS_Working / 08_QMS_Governance"],
+    ["04_Support_Working / 03_SupportProcesses / 01_HumanResources", "04_Support_Working / 01_HumanResources"],
+    ["04_Support_Working / 03_SupportProcesses / 05_Finance", "04_Support_Working / 05_Finance"],
+    ["04_Support_Working / 03_SupportProcesses / 06_Legal", "04_Support_Working / 06_Legal"]
+  ] as const;
+
+  for (const [legacyPath, currentPath] of legacyRestrictedFolderPaths) {
+    await prisma.restrictedFolder.updateMany({
+      where: { path: legacyPath },
+      data: { path: currentPath }
+    });
+  }
 
   for (const [driveName, name, path] of restrictedFolders) {
     const drive = await prisma.sharedDrive.findUniqueOrThrow({ where: { name: driveName } });
@@ -461,16 +475,16 @@ async function main() {
 
   const restrictedByPath = {
     qmsGovernance: await prisma.restrictedFolder.findUniqueOrThrow({
-      where: { path: "01_QMS_Working / 00_Quality / 08_QMS_Governance" }
+      where: { path: "01_QMS_Working / 08_QMS_Governance" }
     }),
     hr: await prisma.restrictedFolder.findUniqueOrThrow({
-      where: { path: "04_Support_Working / 03_SupportProcesses / 01_HumanResources" }
+      where: { path: "04_Support_Working / 01_HumanResources" }
     }),
     finance: await prisma.restrictedFolder.findUniqueOrThrow({
-      where: { path: "04_Support_Working / 03_SupportProcesses / 05_Finance" }
+      where: { path: "04_Support_Working / 05_Finance" }
     }),
     legal: await prisma.restrictedFolder.findUniqueOrThrow({
-      where: { path: "04_Support_Working / 03_SupportProcesses / 06_Legal" }
+      where: { path: "04_Support_Working / 06_Legal" }
     })
   };
 

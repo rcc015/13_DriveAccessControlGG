@@ -54,7 +54,7 @@ These are not the same as business roles.
   - standard drive access:
     - `01_QMS_Working`
   - restricted-folder policy:
-    - `01_QMS_Working / 00_Quality / 08_QMS_Governance`
+    - `01_QMS_Working / 08_QMS_Governance`
     - recommended: policy decision required
     - if all Quality Managers need it, map it directly
     - otherwise use exception workflow
@@ -129,7 +129,7 @@ These are not the same as business roles.
   - standard drive access:
     - restricted access only where approved
   - restricted-folder policy:
-    - `04_Support_Working / 03_SupportProcesses / 01_HumanResources`
+    - `04_Support_Working / 01_HumanResources`
     - recommended: role-based only if HR policy confirms this is standard
 
 - `FINANCE_MANAGER`
@@ -138,7 +138,7 @@ These are not the same as business roles.
   - standard drive access:
     - restricted access only where approved
   - restricted-folder policy:
-    - `04_Support_Working / 03_SupportProcesses / 05_Finance`
+    - `04_Support_Working / 05_Finance`
     - recommended: role-based only if Finance policy confirms this is standard
 
 - `LEGAL_MANAGER`
@@ -147,7 +147,7 @@ These are not the same as business roles.
   - standard drive access:
     - restricted access only where approved
   - restricted-folder policy:
-    - `04_Support_Working / 03_SupportProcesses / 06_Legal`
+    - `04_Support_Working / 06_Legal`
     - recommended: role-based only if Legal policy confirms this is standard
 
 Support-side business roles such as `Office Manager and PR`, `Facilities and Public Relations`, and `Commercial Ops` are currently modeled as contributor-level roles in the app catalog. The current Google group inventory does not yet include a separate support contributor group, so these roles still map to `grp-support-owner@conceivable.life` temporarily. That means the catalog intent is now least-privilege aware, but the final Google-side permission shape should be revisited once a dedicated support contributor group exists.
