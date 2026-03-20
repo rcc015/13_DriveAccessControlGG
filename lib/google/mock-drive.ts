@@ -13,7 +13,18 @@ export class MockDriveProvider implements DriveProvider {
   async createFolder(parentId: string, name: string): Promise<DriveFolderRef> {
     return {
       id: `mock-folder-${parentId}-${name}`.replace(/\s+/g, "-"),
-      name
+      name,
+      webViewLink: `https://mock.drive.local/folders/${encodeURIComponent(
+        `${parentId}-${name}`.replace(/\s+/g, "-")
+      )}`
+    };
+  }
+
+  async resolveFolder(path: string): Promise<DriveFolderRef> {
+    return {
+      id: `mock-folder-${path}`.replace(/[\/\s]+/g, "-"),
+      name: path.split(" / ").at(-1) ?? path,
+      webViewLink: `https://mock.drive.local/folders/${encodeURIComponent(path)}`
     };
   }
 

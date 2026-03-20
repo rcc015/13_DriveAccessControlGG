@@ -1,15 +1,18 @@
 import { AccessDenied } from "@/components/dashboard/access-denied";
+import { TemplateCreatorForm } from "@/components/dashboard/template-creator-form";
 import { adminAssignmentRoles, hasAnyRole } from "@/lib/auth/authorization";
 import { requireSession } from "@/lib/auth/session";
 
 const templates = [
   {
+    kind: "EXPLORATION" as const,
     name: "EXP-###_ProjectName",
     basePath:
       "03_Operational_Working / 02_OperationalProcesses / 03_Exploration_R&D / 02_Exploration_Projects",
     details: "Creates working directory, evidence, media, and engineering handoff structure."
   },
   {
+    kind: "ENGINEERING" as const,
     name: "PRJ-###_ProjectName",
     basePath:
       "03_Operational_Working / 02_OperationalProcesses / 04_Engineering / 01_EngineeringProjects",
@@ -71,6 +74,8 @@ export default async function TemplatesPage() {
           </article>
         ))}
       </section>
+
+      <TemplateCreatorForm templates={templates} />
     </div>
   );
 }

@@ -25,6 +25,7 @@ export interface DirectoryProvider {
 export interface DriveFolderRef {
   id?: string | null;
   name?: string | null;
+  webViewLink?: string | null;
 }
 
 export interface DrivePrincipalRef {
@@ -45,6 +46,7 @@ export interface RestrictedFolderAccessSnapshot {
 export interface DriveProvider {
   uploadReport(name: string, mimeType: string, content: Buffer): Promise<GeneratedFileRef>;
   createFolder(parentId: string, name: string): Promise<DriveFolderRef>;
+  resolveFolder(path: string): Promise<DriveFolderRef>;
   ensureSharedDriveGroupAccess(sharedDriveName: string, groupEmail: string, role: string): Promise<void>;
   ensureFolderGroupAccess(folderPath: string, groupEmail: string, role: string): Promise<void>;
   ensureFolderUserAccess(folderPath: string, userEmail: string, role: string): Promise<void>;

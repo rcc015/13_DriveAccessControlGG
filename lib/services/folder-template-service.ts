@@ -40,11 +40,18 @@ export class FolderTemplateService {
 
   async createTemplate(input: {
     actorEmail: string;
-    parentFolderId: string;
+    parentFolderPath: string;
     rootFolderName: string;
     template: FolderTemplateKind;
   }) {
-    const root = await this.drive.createFolder(input.parentFolderId, input.rootFolderName);
+    const parentFolder = await this.drive.resolveFolder(input.parentFolderPath);
+    const parentFolderId = parentFolder.id ?? "";
+
+    if (!parentFolderId) {
+      throw new Error(`Google Drive did not return an id for base path ${input.parentFolderPath}.`);
+    }
+
+    const root = await this.drive.createFolder(parentFolderId, input.rootFolderName);
     const rootId = root.id ?? "";
 
     if (!rootId) {
@@ -59,7 +66,13 @@ export class FolderTemplateService {
       actionType: "FOLDER_TEMPLATE_CREATED",
       targetFolderPath: input.rootFolderName,
       result: "SUCCESS",
-      notes: `${input.template} template created`
+      notes: `${input.template} template created`,
+      metadata: {
+        basePath: input.parentFolderPath,
+        rootFolderName: input.rootFolderName,
+        createdFolderId: root.id ?? null,
+        createdFolderUrl: root.webViewLink ?? null
+      }
     });
 
     return root;

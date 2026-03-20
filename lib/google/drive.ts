@@ -45,7 +45,18 @@ export class GoogleDriveProvider implements DriveProvider {
         mimeType: "application/vnd.google-apps.folder",
         parents: [parentId]
       },
-      fields: "id,name"
+      fields: "id,name,webViewLink"
+    });
+
+    return response.data;
+  }
+
+  async resolveFolder(path: string) {
+    const folderId = await this.resolveFolderIdByPath(path);
+    const response = await this.client.files.get({
+      fileId: folderId,
+      supportsAllDrives: true,
+      fields: "id,name,webViewLink"
     });
 
     return response.data;
