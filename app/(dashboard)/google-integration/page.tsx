@@ -1,6 +1,7 @@
 import { AccessDenied } from "@/components/dashboard/access-denied";
 import {
   applyActiveEmployeeSync,
+  applyOffboardingHygiene,
   runDirectorySearchProbe,
   runGroupMembersProbe
 } from "@/app/(dashboard)/google-integration/actions";
@@ -10,6 +11,7 @@ import { env } from "@/lib/config/env";
 import { prisma } from "@/lib/db/prisma";
 import { getDirectoryProvider } from "@/lib/google/provider-factory";
 import { ActiveEmployeeSyncService, getAllEmployeesGroupEmail } from "@/lib/services/active-employee-sync-service";
+import { OffboardingHygieneService } from "@/lib/services/offboarding-hygiene-service";
 
 function formatProbeError(error: unknown) {
   if (error instanceof Error) {
@@ -41,8 +43,9 @@ export default async function GoogleIntegrationPage() {
   const defaultProbeQuery = session.email;
   const defaultGroupEmail = mappedGroups[0]?.groupEmail ?? "";
   const activeEmployeeSync = new ActiveEmployeeSyncService(directory);
+  const offboardingHygiene = new OffboardingHygieneService(directory);
 
-  const [directoryProbe, groupProbe, activeEmployeePreview] = await Promise.all([
+  const [directoryProbe, groupProbe, activeEmployeePreview, offboardingPreview] = await Promise.all([
     directory
       .searchUsers(defaultProbeQuery)
       .then((users) => ({
@@ -75,6 +78,16 @@ export default async function GoogleIntegrationPage() {
       currentMemberCount: 0,
       addEmails: [],
       removeEmails: [],
+      error: formatProbeError(error)
+    })),
+    offboardingHygiene.previewOffboarding().catch((error) => ({
+      inactiveUserCount: 0,
+      appRoleAssignmentCount: 0,
+      accessRoleAssignmentCount: 0,
+      membershipRemovalCount: 0,
+      exceptionRevokeCount: 0,
+      directFolderRemovalCount: 0,
+      users: [],
       error: formatProbeError(error)
     }))
   ]);
@@ -179,6 +192,78 @@ export default async function GoogleIntegrationPage() {
             )}
           </div>
         </article>
+      </section>
+
+      <section className="panel">
+        <div className="section-head">
+          <div>
+            <h3>Offboarding hygiene</h3>
+            <p className="muted">
+              Detect inactive Directory users with RBAC-managed access and prepare cleanup.
+            </p>
+          </div>
+          <span className="pill warn">Preview before apply</span>
+        </div>
+        {"error" in offboardingPreview ? (
+          <div className="card-note">{offboardingPreview.error}</div>
+        ) : (
+          <>
+            <div className="stat-strip">
+              <article className="panel stat-card">
+                <span>Inactive users detected</span>
+                <strong>{offboardingPreview.inactiveUserCount}</strong>
+              </article>
+              <article className="panel stat-card">
+                <span>Membership removals</span>
+                <strong>{offboardingPreview.membershipRemovalCount}</strong>
+              </article>
+              <article className="panel stat-card">
+                <span>Assignments to clear</span>
+                <strong>
+                  {offboardingPreview.appRoleAssignmentCount + offboardingPreview.accessRoleAssignmentCount}
+                </strong>
+              </article>
+              <article className="panel stat-card">
+                <span>Exceptions to revoke</span>
+                <strong>{offboardingPreview.exceptionRevokeCount}</strong>
+              </article>
+              <article className="panel stat-card">
+                <span>Direct folder access removals</span>
+                <strong>{offboardingPreview.directFolderRemovalCount}</strong>
+              </article>
+            </div>
+            <article className="panel inset-panel">
+              <div className="section-head">
+                <div>
+                  <h3>Inactive users with managed access</h3>
+                  <p className="muted">
+                    Only users outside the active Directory set and within <code>@conceivable.life</code> are included.
+                  </p>
+                </div>
+                <span className="pill warn">{offboardingPreview.users.length}</span>
+              </div>
+              <ul className="clean">
+                {offboardingPreview.users.length > 0 ? (
+                  offboardingPreview.users.map((user) => (
+                    <li key={user.userEmail}>
+                      <strong>{user.userEmail}</strong>
+                      {user.displayName ? ` (${user.displayName})` : ""}: {user.membershipCount} memberships,{" "}
+                      {user.appRoleCount} app roles, {user.accessRoleCount} business roles,{" "}
+                      {user.exceptionCount} exceptions, {user.directFolderRemovalCount} direct folder removals
+                    </li>
+                  ))
+                ) : (
+                  <li className="muted">No offboarding actions proposed.</li>
+                )}
+              </ul>
+            </article>
+            <form action={applyOffboardingHygiene} className="form-actions">
+              <button type="submit" disabled={!offboardingPreview.users.length}>
+                Apply offboarding hygiene
+              </button>
+            </form>
+          </>
+        )}
       </section>
 
       <section className="panel">

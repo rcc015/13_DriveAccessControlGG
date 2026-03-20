@@ -5,6 +5,7 @@ import { hasAnyRole } from "@/lib/auth/authorization";
 import { requireSession } from "@/lib/auth/session";
 import { getDirectoryProvider } from "@/lib/google/provider-factory";
 import { ActiveEmployeeSyncService } from "@/lib/services/active-employee-sync-service";
+import { OffboardingHygieneService } from "@/lib/services/offboarding-hygiene-service";
 
 export async function runDirectorySearchProbe(formData: FormData) {
   const session = await requireSession();
@@ -55,5 +56,21 @@ export async function applyActiveEmployeeSync() {
   await service.applySync(session.email);
 
   revalidatePath("/google-integration");
+  revalidatePath("/reports");
+}
+
+export async function applyOffboardingHygiene() {
+  const session = await requireSession();
+
+  if (!hasAnyRole(session, ["SUPER_ADMIN"])) {
+    throw new Error("Only Super Admin can apply offboarding hygiene.");
+  }
+
+  const service = new OffboardingHygieneService();
+  await service.applyOffboarding(session.email);
+
+  revalidatePath("/google-integration");
+  revalidatePath("/users");
+  revalidatePath("/access-viewer");
   revalidatePath("/reports");
 }

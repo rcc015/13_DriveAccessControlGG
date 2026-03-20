@@ -228,6 +228,14 @@ function buildAccessChangeLog(payload: any[]) {
 }
 
 function categorizeAuditEvent(actionType: string) {
+  if (actionType.startsWith("OFFBOARD_")) {
+    return "OFFBOARD";
+  }
+
+  if (actionType.startsWith("ACTIVE_EMPLOYEE_SYNC_")) {
+    return "DIRECTORY_SYNC";
+  }
+
   if (actionType === "RECONCILE_APPLY") {
     return "RECONCILE";
   }
