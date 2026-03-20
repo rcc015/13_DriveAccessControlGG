@@ -37,7 +37,7 @@ const reportCatalog: Array<{
   },
   {
     type: "ACCESS_CHANGE_LOG",
-    name: "Access Change Log",
+    name: "Access & Reconcile Change Log",
     format: "CSV",
     storage: "Drive + DB link"
   }
@@ -93,7 +93,7 @@ export default async function ReportsPage() {
         <div className="section-head">
           <div>
             <h3>Report catalog</h3>
-            <p className="muted">Each artifact is archived and linked back to the local record.</p>
+            <p className="muted">Each artifact is archived and linked back to the local record, including reconcile activity.</p>
           </div>
           <span className="pill warn">Generate on demand</span>
         </div>
@@ -149,7 +149,7 @@ export default async function ReportsPage() {
               generatedReports.map((report) => (
                 <tr key={report.id}>
                   <td>{report.generatedAt.toISOString().slice(0, 19).replace("T", " ")}</td>
-                  <td>{report.reportType.replaceAll("_", " ")}</td>
+                  <td>{report.reportType === "ACCESS_CHANGE_LOG" ? "Access & Reconcile Change Log" : report.reportType.replaceAll("_", " ")}</td>
                   <td>{report.fileName}</td>
                   <td>{report.generatedByEmail}</td>
                   <td>

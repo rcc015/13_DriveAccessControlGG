@@ -42,7 +42,7 @@ function normalizeReportLabel(reportType: ReportType) {
     case "PERMISSION_MATRIX":
       return "PermissionMatrix";
     case "ACCESS_CHANGE_LOG":
-      return "AccessChangeLog";
+      return "AccessAndReconcileChangeLog";
   }
 }
 
@@ -195,6 +195,7 @@ function buildPermissionMatrix(payload: any[]) {
 function buildAccessChangeLog(payload: any[]) {
   const rows = payload.map((entry) => ({
     happened_at: entry.happenedAt?.toISOString?.() ?? "",
+    event_category: categorizeAuditEvent(entry.actionType),
     actor_email: entry.actorEmail,
     action_type: entry.actionType,
     target_user_email: entry.targetUserEmail ?? "",
@@ -210,6 +211,7 @@ function buildAccessChangeLog(payload: any[]) {
   return toCsv(
     [
       "happened_at",
+      "event_category",
       "actor_email",
       "action_type",
       "target_user_email",
@@ -223,6 +225,26 @@ function buildAccessChangeLog(payload: any[]) {
     ],
     rows
   );
+}
+
+function categorizeAuditEvent(actionType: string) {
+  if (actionType === "RECONCILE_APPLY") {
+    return "RECONCILE";
+  }
+
+  if (actionType === "REPORT_GENERATED") {
+    return "REPORT";
+  }
+
+  if (actionType.includes("ACCESS_REQUEST")) {
+    return "REQUEST";
+  }
+
+  if (actionType.includes("GROUP_MEMBERSHIP")) {
+    return "MEMBERSHIP";
+  }
+
+  return "ACCESS";
 }
 
 export function buildCsvReport(reportType: ReportType, payload: unknown): BuiltReport {
