@@ -170,7 +170,6 @@ export class GoogleDriveProvider implements DriveProvider {
   private async resolveDriveIdByName(sharedDriveName: string) {
     const response = await this.client.drives.list({
       q: `name = '${escapeDriveQueryValue(sharedDriveName)}'`,
-      useDomainAdminAccess: true,
       pageSize: 10
     });
 
