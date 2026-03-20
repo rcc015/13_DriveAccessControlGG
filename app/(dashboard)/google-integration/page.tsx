@@ -1,10 +1,15 @@
 import { AccessDenied } from "@/components/dashboard/access-denied";
-import { runDirectorySearchProbe, runGroupMembersProbe } from "@/app/(dashboard)/google-integration/actions";
+import {
+  applyActiveEmployeeSync,
+  runDirectorySearchProbe,
+  runGroupMembersProbe
+} from "@/app/(dashboard)/google-integration/actions";
 import { hasAnyRole } from "@/lib/auth/authorization";
 import { requireSession } from "@/lib/auth/session";
 import { env } from "@/lib/config/env";
 import { prisma } from "@/lib/db/prisma";
 import { getDirectoryProvider } from "@/lib/google/provider-factory";
+import { ActiveEmployeeSyncService, getAllEmployeesGroupEmail } from "@/lib/services/active-employee-sync-service";
 
 function formatProbeError(error: unknown) {
   if (error instanceof Error) {
@@ -35,8 +40,9 @@ export default async function GoogleIntegrationPage() {
 
   const defaultProbeQuery = session.email;
   const defaultGroupEmail = mappedGroups[0]?.groupEmail ?? "";
+  const activeEmployeeSync = new ActiveEmployeeSyncService(directory);
 
-  const [directoryProbe, groupProbe] = await Promise.all([
+  const [directoryProbe, groupProbe, activeEmployeePreview] = await Promise.all([
     directory
       .searchUsers(defaultProbeQuery)
       .then((users) => ({
@@ -63,7 +69,14 @@ export default async function GoogleIntegrationPage() {
       : Promise.resolve({
           ok: false as const,
           error: "No mapped groups found in the database."
-        })
+        }),
+    activeEmployeeSync.previewSync().catch((error) => ({
+      activeCount: 0,
+      currentMemberCount: 0,
+      addEmails: [],
+      removeEmails: [],
+      error: formatProbeError(error)
+    }))
   ]);
 
   const configChecks = [
@@ -166,6 +179,81 @@ export default async function GoogleIntegrationPage() {
             )}
           </div>
         </article>
+      </section>
+
+      <section className="panel">
+        <div className="section-head">
+          <div>
+            <h3>Active employee sync</h3>
+            <p className="muted">
+              Sync Directory active users into <code>{getAllEmployeesGroupEmail()}</code>.
+            </p>
+          </div>
+          <span className="pill">Directory-backed</span>
+        </div>
+        {"error" in activeEmployeePreview ? (
+          <div className="card-note">{activeEmployeePreview.error}</div>
+        ) : (
+          <>
+            <div className="stat-strip">
+              <article className="panel stat-card">
+                <span>Active Directory users</span>
+                <strong>{activeEmployeePreview.activeCount}</strong>
+              </article>
+              <article className="panel stat-card">
+                <span>Current group members</span>
+                <strong>{activeEmployeePreview.currentMemberCount}</strong>
+              </article>
+              <article className="panel stat-card">
+                <span>To add</span>
+                <strong>{activeEmployeePreview.addEmails.length}</strong>
+              </article>
+              <article className="panel stat-card">
+                <span>To remove</span>
+                <strong>{activeEmployeePreview.removeEmails.length}</strong>
+              </article>
+            </div>
+            <div className="two-up">
+              <article className="panel inset-panel">
+                <div className="section-head">
+                  <div>
+                    <h3>Preview adds</h3>
+                    <p className="muted">Users active in Directory but missing from the group.</p>
+                  </div>
+                  <span className="pill">{activeEmployeePreview.addEmails.length}</span>
+                </div>
+                <ul className="clean">
+                  {activeEmployeePreview.addEmails.length > 0 ? (
+                    activeEmployeePreview.addEmails.map((email) => <li key={email}>{email}</li>)
+                  ) : (
+                    <li className="muted">No additions proposed.</li>
+                  )}
+                </ul>
+              </article>
+              <article className="panel inset-panel">
+                <div className="section-head">
+                  <div>
+                    <h3>Preview removals</h3>
+                    <p className="muted">Users in the group but no longer active in Directory.</p>
+                  </div>
+                  <span className="pill warn">{activeEmployeePreview.removeEmails.length}</span>
+                </div>
+                <ul className="clean">
+                  {activeEmployeePreview.removeEmails.length > 0 ? (
+                    activeEmployeePreview.removeEmails.map((email) => <li key={email}>{email}</li>)
+                  ) : (
+                    <li className="muted">No removals proposed.</li>
+                  )}
+                </ul>
+              </article>
+            </div>
+            <form action={applyActiveEmployeeSync} className="form-actions">
+              <button type="submit" disabled={!activeEmployeePreview.addEmails.length && !activeEmployeePreview.removeEmails.length}>
+                Apply active employee sync
+              </button>
+            </form>
+          </>
+        )}
       </section>
 
       <section className="panel">

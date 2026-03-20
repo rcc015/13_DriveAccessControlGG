@@ -16,6 +16,7 @@ export interface DirectoryMember {
 
 export interface DirectoryProvider {
   searchUsers(query: string): Promise<DirectoryUser[]>;
+  listActiveUsers(): Promise<DirectoryUser[]>;
   listGroupMembers(groupKey: string): Promise<DirectoryMember[]>;
   addGroupMember(groupKey: string, email: string): Promise<void>;
   removeGroupMember(groupKey: string, memberKey: string): Promise<void>;

@@ -31,6 +31,40 @@ export class GoogleDirectoryProvider implements DirectoryProvider {
     }));
   }
 
+  async listActiveUsers() {
+    const users: DirectoryUser[] = [];
+    let pageToken: string | undefined;
+
+    do {
+      const response = await this.client.users.list({
+        customer: "my_customer",
+        query: "isSuspended=false",
+        maxResults: 500,
+        orderBy: "email",
+        pageToken
+      });
+
+      for (const user of response.data.users ?? []) {
+        const primaryEmail = user.primaryEmail ?? "";
+        if (!primaryEmail || !primaryEmail.endsWith("@conceivable.life")) {
+          continue;
+        }
+
+        users.push({
+          id: user.id ?? primaryEmail ?? crypto.randomUUID(),
+          primaryEmail,
+          name: {
+            fullName: user.name?.fullName ?? null
+          }
+        });
+      }
+
+      pageToken = response.data.nextPageToken ?? undefined;
+    } while (pageToken);
+
+    return users;
+  }
+
   async listGroupMembers(groupKey: string) {
     const response = await this.client.members.list({ groupKey });
     return (response.data.members ?? []).map<DirectoryMember>((member) => ({

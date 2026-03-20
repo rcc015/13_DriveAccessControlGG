@@ -32,6 +32,10 @@ export class MockDirectoryProvider implements DirectoryProvider {
     });
   }
 
+  async listActiveUsers(): Promise<DirectoryUser[]> {
+    return MOCK_USERS;
+  }
+
   async listGroupMembers(groupKey: string): Promise<DirectoryMember[]> {
     return MOCK_USERS.map((user) => ({
       id: `${groupKey}:${user.id}`,

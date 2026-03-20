@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { hasAnyRole } from "@/lib/auth/authorization";
 import { requireSession } from "@/lib/auth/session";
 import { getDirectoryProvider } from "@/lib/google/provider-factory";
+import { ActiveEmployeeSyncService } from "@/lib/services/active-employee-sync-service";
 
 export async function runDirectorySearchProbe(formData: FormData) {
   const session = await requireSession();
@@ -41,4 +42,18 @@ export async function runGroupMembersProbe(formData: FormData) {
   await directory.listGroupMembers(groupEmail);
 
   revalidatePath("/google-integration");
+}
+
+export async function applyActiveEmployeeSync() {
+  const session = await requireSession();
+
+  if (!hasAnyRole(session, ["SUPER_ADMIN"])) {
+    throw new Error("Only Super Admin can apply active employee sync.");
+  }
+
+  const service = new ActiveEmployeeSyncService();
+  await service.applySync(session.email);
+
+  revalidatePath("/google-integration");
+  revalidatePath("/reports");
 }
