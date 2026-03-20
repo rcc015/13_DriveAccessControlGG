@@ -16,6 +16,7 @@ const links = [
   { href: "/access-reviews", label: "Access Reviews", roles: ["SUPER_ADMIN", "REVIEWER", "READ_ONLY_AUDITOR"] },
   { href: "/reports", label: "Reports", roles: adminAndReadRoles },
   { href: "/templates", label: "Templates", roles: adminAssignmentRoles },
+  { href: "/google-access-monitor", label: "Monitor", roles: adminAndReadRoles },
   { href: "/google-integration", label: "Google", roles: ["SUPER_ADMIN"] }
 ].map((link) => ({
   ...link,

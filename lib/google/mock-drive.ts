@@ -1,5 +1,5 @@
 import type { GeneratedFileRef } from "@/types/domain";
-import type { DriveFolderRef, DriveProvider } from "@/lib/google/types";
+import type { DriveFolderRef, DriveProvider, DrivePrincipalRef, RestrictedFolderAccessSnapshot } from "@/lib/google/types";
 
 export class MockDriveProvider implements DriveProvider {
   async uploadReport(name: string, _mimeType: string, _content: Buffer): Promise<GeneratedFileRef> {
@@ -20,4 +20,16 @@ export class MockDriveProvider implements DriveProvider {
   async ensureFolderGroupAccess(_folderPath: string, _groupEmail: string, _role: string): Promise<void> {}
 
   async ensureFolderUserAccess(_folderPath: string, _userEmail: string, _role: string): Promise<void> {}
+
+  async listSharedDrivePrincipals(_sharedDriveName: string): Promise<DrivePrincipalRef[]> {
+    return [];
+  }
+
+  async getRestrictedFolderAccess(folderPath: string): Promise<RestrictedFolderAccessSnapshot> {
+    return {
+      path: folderPath,
+      limitedAccess: false,
+      principals: []
+    };
+  }
 }

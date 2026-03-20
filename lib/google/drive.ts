@@ -3,7 +3,7 @@ import { google } from "googleapis";
 import { createDelegatedGoogleAuth } from "@/lib/google/auth";
 import { env } from "@/lib/config/env";
 import type { GeneratedFileRef } from "@/types/domain";
-import type { DriveProvider } from "@/lib/google/types";
+import type { DrivePrincipalRef, DriveProvider, RestrictedFolderAccessSnapshot } from "@/lib/google/types";
 
 const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive"];
 
@@ -61,18 +61,40 @@ export class GoogleDriveProvider implements DriveProvider {
     await this.ensurePermission(folderId, "user", userEmail, role);
   }
 
-  private async ensurePermission(fileId: string, type: "group" | "user", emailAddress: string, role: string) {
-    const permissions = await this.client.permissions.list({
-      fileId,
-      supportsAllDrives: true,
-      fields: "permissions(id,emailAddress,type,role)"
-    });
+  async listSharedDrivePrincipals(sharedDriveName: string): Promise<DrivePrincipalRef[]> {
+    const driveId = await this.resolveDriveIdByName(sharedDriveName);
+    return this.listPermissions(driveId);
+  }
 
-    const existing = (permissions.data.permissions ?? []).find(
+  async getRestrictedFolderAccess(folderPath: string): Promise<RestrictedFolderAccessSnapshot> {
+    const folderId = await this.resolveFolderIdByPath(folderPath);
+    const [file, principals] = await Promise.all([
+      this.client.files.get({
+        fileId: folderId,
+        supportsAllDrives: true,
+        fields: "id,name,inheritedPermissionsDisabled"
+      }),
+      this.listPermissions(folderId)
+    ]);
+
+    const inheritedPermissionsDisabled = (
+      file.data as typeof file.data & { inheritedPermissionsDisabled?: boolean | null }
+    ).inheritedPermissionsDisabled;
+
+    return {
+      path: folderPath,
+      limitedAccess: Boolean(inheritedPermissionsDisabled),
+      principals
+    };
+  }
+
+  private async ensurePermission(fileId: string, type: "group" | "user", emailAddress: string, role: string) {
+    const permissions = await this.listPermissions(fileId);
+    const existing = permissions.find(
       (permission) => permission.type === type && permission.emailAddress === emailAddress
     );
 
-    if (!existing?.id) {
+    if (!existing) {
       await this.client.permissions.create({
         fileId,
         supportsAllDrives: true,
@@ -96,6 +118,24 @@ export class GoogleDriveProvider implements DriveProvider {
       supportsAllDrives: true,
       requestBody: { role }
     });
+  }
+
+  private async listPermissions(fileId: string): Promise<DrivePrincipalRef[]> {
+    const permissions = await this.client.permissions.list({
+      fileId,
+      supportsAllDrives: true,
+      fields:
+        "permissions(id,emailAddress,displayName,type,role,permissionDetails)"
+    });
+
+    return (permissions.data.permissions ?? []).map((permission) => ({
+      id: permission.id ?? "",
+      type: permission.type ?? "",
+      role: permission.role ?? "",
+      emailAddress: permission.emailAddress ?? null,
+      displayName: permission.displayName ?? null,
+      inherited: (permission.permissionDetails ?? []).every((detail) => detail.inherited === true)
+    }));
   }
 
   private async resolveFolderIdByPath(path: string) {

@@ -26,9 +26,26 @@ export interface DriveFolderRef {
   name?: string | null;
 }
 
+export interface DrivePrincipalRef {
+  id: string;
+  type: string;
+  role: string;
+  emailAddress: string | null;
+  displayName: string | null;
+  inherited: boolean;
+}
+
+export interface RestrictedFolderAccessSnapshot {
+  path: string;
+  limitedAccess: boolean;
+  principals: DrivePrincipalRef[];
+}
+
 export interface DriveProvider {
   uploadReport(name: string, mimeType: string, content: Buffer): Promise<GeneratedFileRef>;
   createFolder(parentId: string, name: string): Promise<DriveFolderRef>;
   ensureFolderGroupAccess(folderPath: string, groupEmail: string, role: string): Promise<void>;
   ensureFolderUserAccess(folderPath: string, userEmail: string, role: string): Promise<void>;
+  listSharedDrivePrincipals(sharedDriveName: string): Promise<DrivePrincipalRef[]>;
+  getRestrictedFolderAccess(folderPath: string): Promise<RestrictedFolderAccessSnapshot>;
 }
