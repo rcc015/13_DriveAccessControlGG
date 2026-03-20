@@ -1,8 +1,8 @@
 import { AccessDenied } from "@/components/dashboard/access-denied";
+import { ReconcilePanel } from "@/components/dashboard/reconcile-panel";
 import { adminAndReadRoles, hasAnyRole } from "@/lib/auth/authorization";
 import { requireSession } from "@/lib/auth/session";
 import { GoogleAccessMonitorService } from "@/lib/services/google-access-monitor-service";
-import { applyReconcile } from "@/app/(dashboard)/google-access-monitor/actions";
 
 function formatGroupLabel(groupEmail: string) {
   return groupEmail.replace("@conceivable.life", "");
@@ -105,57 +105,7 @@ export default async function GoogleAccessMonitorPage() {
         </article>
       </section>
 
-      <section className="panel">
-        <div className="section-head">
-          <div>
-            <h3>Reconcile preview</h3>
-            <p className="muted">Proposed corrective actions based on the current drift snapshot.</p>
-          </div>
-          <div className="inline-actions">
-            <span className="pill">Preview only</span>
-            <form action={applyReconcile}>
-              <button className="button-ghost" type="submit" disabled={snapshot.reconcilePreview.summary.total === 0}>
-                Apply reconcile
-              </button>
-            </form>
-          </div>
-        </div>
-        <div className="stat-strip">
-          <article className="panel stat-card">
-            <span>Total actions</span>
-            <strong>{snapshot.reconcilePreview.summary.total}</strong>
-          </article>
-          <article className="panel stat-card">
-            <span>Add groups</span>
-            <strong>{snapshot.reconcilePreview.summary.addCount}</strong>
-          </article>
-          <article className="panel stat-card">
-            <span>Remove access</span>
-            <strong>{snapshot.reconcilePreview.summary.removeCount}</strong>
-          </article>
-          <article className="panel stat-card">
-            <span>Update roles</span>
-            <strong>{snapshot.reconcilePreview.summary.updateCount}</strong>
-          </article>
-          <article className="panel stat-card">
-            <span>Enable limited access</span>
-            <strong>{snapshot.reconcilePreview.summary.limitedAccessCount}</strong>
-          </article>
-          <article className="panel stat-card">
-            <span>Manual review</span>
-            <strong>{snapshot.reconcilePreview.summary.manualReviewCount}</strong>
-          </article>
-        </div>
-        <ul className="clean">
-          {snapshot.reconcilePreview.actions.length > 0 ? (
-            snapshot.reconcilePreview.actions.map((action, index) => (
-              <li key={`${action.resourceName}-${action.kind}-${action.principal ?? index}`}>{action.summary}</li>
-            ))
-          ) : (
-            <li className="muted">No reconcile actions proposed for the current snapshot.</li>
-          )}
-        </ul>
-      </section>
+      <ReconcilePanel preview={snapshot.reconcilePreview} />
 
       <section className="panel">
         <div className="section-head">

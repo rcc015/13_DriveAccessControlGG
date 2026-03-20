@@ -493,6 +493,28 @@ th {
   width: auto;
 }
 
+.callout {
+  margin: 14px 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--panel-strong);
+}
+
+.callout.success {
+  border-color: rgba(25, 130, 92, 0.24);
+  background: rgba(25, 130, 92, 0.08);
+}
+
+.callout.error {
+  border-color: rgba(188, 71, 73, 0.24);
+  background: rgba(188, 71, 73, 0.08);
+}
+
+.callout p {
+  margin: 6px 0 0;
+}
+
 .panel form {
   width: 100%;
 }
