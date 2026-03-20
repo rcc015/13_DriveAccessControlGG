@@ -107,6 +107,51 @@ export default async function GoogleAccessMonitorPage() {
       <section className="panel">
         <div className="section-head">
           <div>
+            <h3>Reconcile preview</h3>
+            <p className="muted">Proposed corrective actions based on the current drift snapshot.</p>
+          </div>
+          <span className="pill">Preview only</span>
+        </div>
+        <div className="stat-strip">
+          <article className="panel stat-card">
+            <span>Total actions</span>
+            <strong>{snapshot.reconcilePreview.summary.total}</strong>
+          </article>
+          <article className="panel stat-card">
+            <span>Add groups</span>
+            <strong>{snapshot.reconcilePreview.summary.addCount}</strong>
+          </article>
+          <article className="panel stat-card">
+            <span>Remove access</span>
+            <strong>{snapshot.reconcilePreview.summary.removeCount}</strong>
+          </article>
+          <article className="panel stat-card">
+            <span>Update roles</span>
+            <strong>{snapshot.reconcilePreview.summary.updateCount}</strong>
+          </article>
+          <article className="panel stat-card">
+            <span>Enable limited access</span>
+            <strong>{snapshot.reconcilePreview.summary.limitedAccessCount}</strong>
+          </article>
+          <article className="panel stat-card">
+            <span>Manual review</span>
+            <strong>{snapshot.reconcilePreview.summary.manualReviewCount}</strong>
+          </article>
+        </div>
+        <ul className="clean">
+          {snapshot.reconcilePreview.actions.length > 0 ? (
+            snapshot.reconcilePreview.actions.map((action, index) => (
+              <li key={`${action.resourceName}-${action.kind}-${action.principal ?? index}`}>{action.summary}</li>
+            ))
+          ) : (
+            <li className="muted">No reconcile actions proposed for the current snapshot.</li>
+          )}
+        </ul>
+      </section>
+
+      <section className="panel">
+        <div className="section-head">
+          <div>
             <h3>Shared Drive drift</h3>
             <p className="muted">Expected Google Groups vs actual members on each Shared Drive.</p>
           </div>

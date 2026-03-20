@@ -5,6 +5,21 @@ import type { DrivePrincipalRef, DriveProvider } from "@/lib/google/types";
 type MonitorStatus = "ALIGNED" | "MISSING" | "UNEXPECTED" | "ROLE_MISMATCH" | "LIMITED_ACCESS_DISABLED";
 const ALLOWED_DIRECT_USER_EXCEPTIONS = new Set(["rbac@conceivable.life"]);
 
+export interface ReconcilePreviewAction {
+  resourceName: string;
+  kind:
+    | "ADD_GROUP"
+    | "REMOVE_GROUP"
+    | "UPDATE_ROLE"
+    | "REMOVE_DIRECT_USER"
+    | "ENABLE_LIMITED_ACCESS"
+    | "MANUAL_REVIEW";
+  principal?: string;
+  expectedRole?: string;
+  actualRole?: string;
+  summary: string;
+}
+
 interface ExpectedAccessEntry {
   email: string;
   role: string;
@@ -114,10 +129,12 @@ export class GoogleAccessMonitorService {
       (sum, row) => sum + row.unexpectedGroups.length + row.directUsers.length,
       0
     );
+    const reconcilePreview = buildReconcilePreview(sharedDriveRows, restrictedFolderRows);
 
     return {
       sharedDriveRows,
       restrictedFolderRows,
+      reconcilePreview,
       summary: {
         sharedDriveAlignedCount,
         sharedDriveCount: sharedDriveRows.length,
@@ -128,6 +145,121 @@ export class GoogleAccessMonitorService {
       }
     };
   }
+}
+
+function buildReconcilePreview(
+  sharedDriveRows: AccessComparisonRow[],
+  restrictedFolderRows: RestrictedFolderComparisonRow[]
+) {
+  const actions: ReconcilePreviewAction[] = [];
+  const allRows = [...sharedDriveRows, ...restrictedFolderRows];
+
+  for (const row of allRows) {
+    if (row.status === "LIMITED_ACCESS_DISABLED") {
+      actions.push({
+        resourceName: row.resourceName,
+        kind: "ENABLE_LIMITED_ACCESS",
+        summary: `Enable limited access on ${row.resourceName}.`
+      });
+    }
+
+    for (const missingGroup of row.missingGroups) {
+      const { principal, role } = parseFormattedGroupRole(missingGroup);
+      actions.push({
+        resourceName: row.resourceName,
+        kind: "ADD_GROUP",
+        principal,
+        expectedRole: role,
+        summary: `Add ${principal} to ${row.resourceName} as ${role}.`
+      });
+    }
+
+    for (const unexpectedGroup of row.unexpectedGroups) {
+      const { principal } = parseFormattedGroupRole(unexpectedGroup);
+      actions.push({
+        resourceName: row.resourceName,
+        kind: "REMOVE_GROUP",
+        principal,
+        summary: `Remove unexpected group ${principal} from ${row.resourceName}.`
+      });
+    }
+
+    for (const roleMismatch of row.roleMismatches) {
+      const match = roleMismatch.match(/^(.*): expected (.*), actual (.*)$/);
+      if (!match) {
+        actions.push({
+          resourceName: row.resourceName,
+          kind: "MANUAL_REVIEW",
+          summary: `Review role mismatch on ${row.resourceName}: ${roleMismatch}.`
+        });
+        continue;
+      }
+
+      const [, principal, expectedRole, actualRole] = match;
+      actions.push({
+        resourceName: row.resourceName,
+        kind: "UPDATE_ROLE",
+        principal,
+        expectedRole,
+        actualRole,
+        summary: `Change ${principal} on ${row.resourceName} from ${actualRole} to ${expectedRole}.`
+      });
+    }
+
+    for (const user of row.directUsers) {
+      actions.push({
+        resourceName: row.resourceName,
+        kind: "REMOVE_DIRECT_USER",
+        principal: user,
+        summary: `Remove direct user ${user} from ${row.resourceName}.`
+      });
+    }
+
+    if (row.errorMessage) {
+      actions.push({
+        resourceName: row.resourceName,
+        kind: "MANUAL_REVIEW",
+        summary: `Manual review required for ${row.resourceName}: ${row.errorMessage}`
+      });
+    }
+  }
+
+  const counts = actions.reduce(
+    (acc, action) => {
+      switch (action.kind) {
+        case "ADD_GROUP":
+          acc.add += 1;
+          break;
+        case "REMOVE_GROUP":
+        case "REMOVE_DIRECT_USER":
+          acc.remove += 1;
+          break;
+        case "UPDATE_ROLE":
+          acc.update += 1;
+          break;
+        case "ENABLE_LIMITED_ACCESS":
+          acc.limitedAccess += 1;
+          break;
+        case "MANUAL_REVIEW":
+          acc.manual += 1;
+          break;
+      }
+      return acc;
+    },
+    { add: 0, remove: 0, update: 0, limitedAccess: 0, manual: 0 }
+  );
+
+  return {
+    actions,
+    summary: {
+      total: actions.length,
+      addCount: counts.add,
+      removeCount: counts.remove,
+      updateCount: counts.update,
+      limitedAccessCount: counts.limitedAccess,
+      manualReviewCount: counts.manual
+    }
+  };
 }
 
 function compareAccessState(input: {
@@ -248,4 +380,16 @@ function mapAccessLevelToDriveRole(accessLevel: string) {
 
 function formatGroupRole(email: string, role: string) {
   return `${email} (${role})`;
+}
+
+function parseFormattedGroupRole(value: string) {
+  const match = value.match(/^(.*) \((.*)\)$/);
+  if (!match) {
+    return { principal: value, role: "" };
+  }
+
+  return {
+    principal: match[1],
+    role: match[2]
+  };
 }
