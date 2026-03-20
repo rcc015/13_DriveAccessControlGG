@@ -9,8 +9,6 @@ interface AccessViewerPageProps {
   }>;
 }
 
-const demoEmails = ["ana@company.com", "miguel@company.com", "lucia@company.com"];
-
 export default async function AccessViewerPage({ searchParams }: AccessViewerPageProps) {
   const session = await requireSession();
 
@@ -19,7 +17,7 @@ export default async function AccessViewerPage({ searchParams }: AccessViewerPag
   }
 
   const params = (await searchParams) ?? {};
-  const email = params.email?.trim() || demoEmails[0];
+  const email = params.email?.trim() || "";
   const accessViewer = new AccessViewerService();
   const access = await accessViewer.getUserAccess(email);
 
@@ -32,8 +30,8 @@ export default async function AccessViewerPage({ searchParams }: AccessViewerPag
         </div>
         <h2>User access viewer</h2>
         <p>
-          Inspect effective access for a single user, keeping inherited Shared Drive access and
-          restricted-folder exceptions clearly separated.
+          Inspect effective access for a single user, separating baseline Shared Drive access from
+          restricted-folder grants that have actually been approved or applied.
         </p>
       </section>
 
@@ -49,13 +47,6 @@ export default async function AccessViewerPage({ searchParams }: AccessViewerPag
           <input type="email" name="email" defaultValue={email} placeholder="user@company.com" />
           <button type="submit">View access</button>
         </form>
-        <div className="quick-links">
-          {demoEmails.map((demoEmail) => (
-            <a key={demoEmail} href={`/access-viewer?email=${encodeURIComponent(demoEmail)}`} className="pill">
-              {demoEmail}
-            </a>
-          ))}
-        </div>
       </section>
 
       <section className="two-up">
@@ -112,15 +103,15 @@ export default async function AccessViewerPage({ searchParams }: AccessViewerPag
         <article className="panel">
           <div className="section-head">
             <div>
-              <h3>Restricted exceptions</h3>
-              <p className="muted">Approved exception-only paths.</p>
+              <h3>Approved restricted grants</h3>
+              <p className="muted">Restricted-folder access that has actually been approved or granted.</p>
             </div>
           </div>
           <ul className="clean">
             {access.restrictedFolderExceptions.length > 0 ? (
               access.restrictedFolderExceptions.map((path) => <li key={path}>{path}</li>)
             ) : (
-              <li className="muted">No approved restricted-folder exceptions.</li>
+              <li className="muted">No restricted-folder grants recorded for this user.</li>
             )}
           </ul>
         </article>
@@ -130,7 +121,7 @@ export default async function AccessViewerPage({ searchParams }: AccessViewerPag
         <div className="section-head">
           <div>
             <h3>Inherited Shared Drive access</h3>
-            <p className="muted">This section reflects group-based drive inheritance only.</p>
+            <p className="muted">This section reflects group-based drive inheritance only. Restricted folders appear here only when access has been granted.</p>
           </div>
           <span className="pill warn">RBAC path</span>
         </div>
@@ -139,7 +130,7 @@ export default async function AccessViewerPage({ searchParams }: AccessViewerPag
             <tr>
               <th>Shared Drive</th>
               <th>Via Google Groups</th>
-              <th>Restricted paths on this drive</th>
+              <th>Granted restricted paths on this drive</th>
             </tr>
           </thead>
           <tbody>
@@ -151,7 +142,7 @@ export default async function AccessViewerPage({ searchParams }: AccessViewerPag
                   <td>
                     {access.restrictedFolderExceptions.filter((path) =>
                       path.startsWith(summary.sharedDriveName)
-                    ).join(", ") || "None"}
+                    ).join(", ") || "None granted"}
                   </td>
                 </tr>
               ))
