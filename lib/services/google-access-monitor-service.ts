@@ -3,6 +3,7 @@ import { getDriveProvider } from "@/lib/google/provider-factory";
 import type { DrivePrincipalRef, DriveProvider } from "@/lib/google/types";
 
 type MonitorStatus = "ALIGNED" | "MISSING" | "UNEXPECTED" | "ROLE_MISMATCH" | "LIMITED_ACCESS_DISABLED";
+const ALLOWED_DIRECT_USER_EXCEPTIONS = new Set(["rbac@conceivable.life"]);
 
 interface ExpectedAccessEntry {
   email: string;
@@ -154,6 +155,7 @@ function compareAccessState(input: {
   const directUsers = input.actualPrincipals
     .filter((principal) => principal.type === "user" && principal.emailAddress && !principal.inherited)
     .map((principal) => principal.emailAddress ?? "")
+    .filter((email) => !ALLOWED_DIRECT_USER_EXCEPTIONS.has(email))
     .sort();
 
   const actualGroupMap = new Map(actualGroups.map((group) => [group.email, group.role]));
