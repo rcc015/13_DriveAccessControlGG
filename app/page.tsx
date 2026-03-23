@@ -7,6 +7,38 @@ function formatGroupLabel(groupEmail: string) {
   return groupEmail.replace("@conceivable.life", "");
 }
 
+function formatAuditDate(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric"
+  }).format(date);
+}
+
+function humanizeActionType(actionType: string) {
+  const explicit: Record<string, string> = {
+    FOLDER_TEMPLATE_CREATED: "Folder template created",
+    RECONCILE_APPLY: "Reconcile applied",
+    GROUP_MEMBERSHIP_ADD: "Group membership added",
+    GROUP_MEMBERSHIP_REMOVE: "Group membership removed",
+    ACCESS_ROLE_MEMBERSHIP_ADD: "Business access membership added",
+    ACCESS_ROLE_MEMBERSHIP_REMOVE: "Business access membership removed",
+    RESTRICTED_ACCESS_APPROVED: "Restricted access approved",
+    RESTRICTED_ACCESS_REJECTED: "Restricted access rejected",
+    ACTIVE_EMPLOYEE_SYNC_COMPLETED: "Active employee sync completed",
+    OFFBOARD_COMPLETED: "Offboarding completed"
+  };
+
+  if (explicit[actionType]) {
+    return explicit[actionType];
+  }
+
+  return actionType
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function formatAuditPulse(entry: {
   actionType: string;
   targetUserEmail: string | null;
@@ -15,12 +47,17 @@ function formatAuditPulse(entry: {
   notes: string | null;
   happenedAt: Date;
 }) {
-  const when = entry.happenedAt.toISOString().slice(0, 10);
-  const targetUser = entry.targetUserEmail ? ` for ${entry.targetUserEmail}` : "";
-  const targetGroup = entry.targetGroupEmail ? ` via ${formatGroupLabel(entry.targetGroupEmail)}` : "";
-  const targetDrive = entry.targetDriveName ? ` on ${entry.targetDriveName}` : "";
-  const details = entry.notes ? ` ${entry.notes}` : "";
-  return `${when}: ${entry.actionType}${targetUser}${targetGroup}${targetDrive}.${details}`.trim();
+  const fragments = [
+    entry.targetDriveName ? `on ${entry.targetDriveName}` : null,
+    entry.targetUserEmail ? `for ${entry.targetUserEmail}` : null,
+    entry.targetGroupEmail ? `via ${formatGroupLabel(entry.targetGroupEmail)}` : null
+  ].filter(Boolean);
+
+  return {
+    kicker: formatAuditDate(entry.happenedAt),
+    title: humanizeActionType(entry.actionType),
+    detail: fragments.join(" · ") || entry.notes || null
+  };
 }
 
 export default async function HomePage() {
@@ -113,7 +150,13 @@ export default async function HomePage() {
   const recentEvents =
     auditLogs.length > 0
       ? auditLogs.map(formatAuditPulse)
-      : ["No recent audit events captured yet in this environment."];
+      : [
+          {
+            kicker: "",
+            title: "No recent audit activity",
+            detail: "This environment has not captured audit-relevant events yet."
+          }
+        ];
 
   return (
     <div className="hero">
@@ -176,11 +219,17 @@ export default async function HomePage() {
               <h3>Audit Pulse</h3>
               <p className="muted">Events that matter for ISO 9001 and SOC 2 evidence.</p>
             </div>
-            <span className="pill warn">Review weekly</span>
+            <a href="/reports" className="section-link">
+              Review weekly &rarr;
+            </a>
           </div>
-          <ul className="clean">
+          <ul className="audit-list">
             {recentEvents.map((event) => (
-              <li key={event}>{event}</li>
+              <li key={`${event.kicker}-${event.title}`} className="activity-item">
+                {event.kicker ? <span className="activity-kicker">{event.kicker}</span> : null}
+                <strong className="activity-title">{event.title}</strong>
+                {event.detail ? <span className="activity-detail">{event.detail}</span> : null}
+              </li>
             ))}
           </ul>
         </article>

@@ -8,6 +8,16 @@ function formatGroupLabel(groupEmail: string) {
   return groupEmail.replace("@conceivable.life", "");
 }
 
+function humanizeFinding(text: string) {
+  return text
+    .replaceAll("@conceivable.life", "")
+    .replace(/\.$/, "")
+    .replace(/^missing /i, "Missing ")
+    .replace(/^unexpected /i, "Unexpected ")
+    .replace(/^direct user access for /i, "Direct user access for ")
+    .replace(/^limited access is disabled/i, "Limited access is disabled");
+}
+
 function formatStatus(status: "ALIGNED" | "MISSING" | "UNEXPECTED" | "ROLE_MISMATCH" | "LIMITED_ACCESS_DISABLED") {
   switch (status) {
     case "ALIGNED":
@@ -39,30 +49,54 @@ export default async function GoogleAccessMonitorPage() {
   const snapshot = await service.getMonitorSnapshot();
 
   const driftItems = [...snapshot.sharedDriveRows, ...snapshot.restrictedFolderRows].flatMap((row) => {
-    const items = [];
+    const items: Array<{ resource: string; message: string; detail?: string }> = [];
 
     if (row.status === "LIMITED_ACCESS_DISABLED") {
-      items.push(`${row.resourceName}: limited access is disabled.`);
+      items.push({
+        resource: row.resourceName,
+        message: "Limited access is disabled",
+        detail: "This folder is inheriting access instead of being isolated."
+      });
     }
 
     for (const item of row.missingGroups) {
-      items.push(`${row.resourceName}: missing ${item}.`);
+      items.push({
+        resource: row.resourceName,
+        message: humanizeFinding(`missing ${item}`),
+        detail: "This expected grant is missing from Google Drive."
+      });
     }
 
     for (const item of row.unexpectedGroups) {
-      items.push(`${row.resourceName}: unexpected ${item}.`);
+      items.push({
+        resource: row.resourceName,
+        message: humanizeFinding(`unexpected ${item}`),
+        detail: "This grant exists in Google Drive but is not part of the RBAC policy."
+      });
     }
 
     for (const item of row.roleMismatches) {
-      items.push(`${row.resourceName}: ${item}.`);
+      items.push({
+        resource: row.resourceName,
+        message: humanizeFinding(item),
+        detail: "The principal exists, but the assigned role does not match policy."
+      });
     }
 
     for (const user of row.directUsers) {
-      items.push(`${row.resourceName}: direct user access for ${user}.`);
+      items.push({
+        resource: row.resourceName,
+        message: humanizeFinding(`direct user access for ${user}`),
+        detail: "This user has direct access instead of inheriting access through the managed policy path."
+      });
     }
 
     if (row.errorMessage) {
-      items.push(`${row.resourceName}: ${row.errorMessage}`);
+      items.push({
+        resource: row.resourceName,
+        message: "Google Drive lookup needs review",
+        detail: row.errorMessage
+      });
     }
 
     return items;
@@ -193,11 +227,22 @@ export default async function GoogleAccessMonitorPage() {
           </div>
           <span className="pill">{driftItems.length === 0 ? "No drift" : `${driftItems.length} findings`}</span>
         </div>
-        <ul className="clean">
+        <ul className="audit-list">
           {driftItems.length > 0 ? (
-            driftItems.map((item) => <li key={item}>{item}</li>)
+            driftItems.map((item) => (
+              <li key={`${item.resource}-${item.message}`} className="activity-item">
+                <span className="activity-kicker">{item.resource}</span>
+                <strong className="activity-title">{item.message}</strong>
+                {item.detail ? <span className="activity-detail">{item.detail}</span> : null}
+              </li>
+            ))
           ) : (
-            <li className="muted">No drift detected between RBAC policy and Google Drive ACLs.</li>
+            <li className="activity-item">
+              <strong className="activity-title">No drift detected</strong>
+              <span className="activity-detail">
+                RBAC policy and Google Drive ACLs are currently aligned.
+              </span>
+            </li>
           )}
         </ul>
       </section>
