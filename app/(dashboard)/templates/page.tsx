@@ -7,15 +7,13 @@ const templates = [
   {
     kind: "EXPLORATION" as const,
     name: "EXP-###_ProjectName",
-    basePath:
-      "03_Operational_Working / 02_OperationalProcesses / 03_Exploration_R&D / 02_Exploration_Projects",
+    basePath: "03_Operational_Working / 03_Exploration_R&D / 02_Exploration_Projects",
     details: "Creates working directory, evidence, media, and engineering handoff structure."
   },
   {
     kind: "ENGINEERING" as const,
     name: "PRJ-###_ProjectName",
-    basePath:
-      "03_Operational_Working / 02_OperationalProcesses / 04_Engineering / 01_EngineeringProjects",
+    basePath: "03_Operational_Working / 04_Engineering / 01_EngineeringProjects",
     details: "Creates regulated engineering folders and ready-for-handoff branch."
   }
 ];

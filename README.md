@@ -115,7 +115,7 @@ Support creation of:
 
 Base path:
 
-`03_Operational_Working / 02_OperationalProcesses / 03_Exploration_R&D / 02_Exploration_Projects`
+`03_Operational_Working / 03_Exploration_R&D / 02_Exploration_Projects`
 
 Template:
 
@@ -137,7 +137,7 @@ Template:
 
 Base path:
 
-`03_Operational_Working / 02_OperationalProcesses / 04_Engineering / 01_EngineeringProjects`
+`03_Operational_Working / 04_Engineering / 01_EngineeringProjects`
 
 Template:
 
