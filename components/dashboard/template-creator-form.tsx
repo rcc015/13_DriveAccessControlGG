@@ -34,7 +34,7 @@ export function TemplateCreatorForm({ templates }: { templates: TemplateOption[]
           <h3>Create template instance</h3>
           <p className="muted">Creates the approved folder tree under the mapped Google Drive base path.</p>
         </div>
-        <span className="pill warn">Writes to Drive</span>
+        <span className="badge-neutral">Writes to Drive</span>
       </div>
 
       <form action={formAction} className="form-grid">
