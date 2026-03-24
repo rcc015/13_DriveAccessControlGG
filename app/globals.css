@@ -551,6 +551,28 @@ th {
   width: auto;
 }
 
+.inline-edit-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.inline-edit-form input,
+.inline-edit-form select {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border-input);
+  border-radius: 6px;
+  background: var(--panel-strong);
+  color: var(--text);
+  font: inherit;
+}
+
+.inline-edit-form input {
+  min-width: 260px;
+}
+
 .callout {
   margin: 14px 0;
   padding: 14px 16px;

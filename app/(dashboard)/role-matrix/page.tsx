@@ -1,5 +1,10 @@
 import { Fragment } from "react";
 import { AccessDenied } from "@/components/dashboard/access-denied";
+import {
+  createAdminRoleMapping,
+  deleteAdminRoleMapping,
+  updateAdminRoleMapping
+} from "@/app/(dashboard)/role-matrix/actions";
 import { adminAndReadRoles, hasAnyRole } from "@/lib/auth/authorization";
 import { requireSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
@@ -339,6 +344,17 @@ export default async function RoleMatrixPage({ searchParams }: RoleMatrixPagePro
 
   const showAdminCatalog = catalogFilter === "all" || catalogFilter === "admin";
   const showBusinessCatalog = catalogFilter === "all" || catalogFilter === "business";
+  const manageableAdminRoles = roles.filter((role) => role.name !== "ACCESS_ADMIN");
+  const editableAdminMappings = adminRoles
+    .flatMap((role) =>
+      role.mappings
+        .filter((mapping) => !mapping.restrictedFolderPath)
+        .map((mapping) => ({
+          ...mapping,
+          roleName: role.name
+        }))
+    )
+    .sort((left, right) => `${left.roleName}-${left.sharedDriveName}-${left.groupEmail}`.localeCompare(`${right.roleName}-${right.sharedDriveName}-${right.groupEmail}`));
 
   return (
     <div className="stack">
@@ -418,6 +434,121 @@ export default async function RoleMatrixPage({ searchParams }: RoleMatrixPagePro
           <p className="matrix-note">
             Assignments in this catalog are the ones that currently drive Google Group membership changes from the Users module.
           </p>
+        </section>
+      )}
+
+      {showAdminCatalog && (
+        <section className="panel">
+          <div className="section-head">
+            <div>
+              <h3>App role mapping editor</h3>
+              <p className="muted">
+                Manage non-restricted Shared Drive visibility for app roles. This editor is intentionally limited to
+                `VIEWER` and `CONTRIBUTOR`.
+              </p>
+            </div>
+            <span className="pill">V1 safe edit</span>
+          </div>
+
+          <form action={createAdminRoleMapping} className="form-grid">
+            <label className="field">
+              <span>App role</span>
+              <select name="roleId" required defaultValue="">
+                <option value="" disabled>
+                  Select app role
+                </option>
+                {manageableAdminRoles.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.name.replaceAll("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field">
+              <span>Shared drive</span>
+              <select name="sharedDriveId" required defaultValue="">
+                <option value="" disabled>
+                  Select Shared Drive
+                </option>
+                {drives.map((drive) => (
+                  <option key={drive.id} value={drive.id}>
+                    {drive.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field field-full">
+              <span>Google group</span>
+              <input type="email" name="groupEmail" placeholder="grp-reviewers@conceivable.life" required />
+            </label>
+
+            <label className="field">
+              <span>Access level</span>
+              <select name="accessLevel" required defaultValue="VIEWER">
+                <option value="VIEWER">Viewer</option>
+                <option value="CONTRIBUTOR">Contributor</option>
+              </select>
+            </label>
+
+            <div className="card-note field-full">
+              App roles inherit access across the whole Shared Drive. Non-restricted folders are covered automatically by that
+              drive-level mapping. Restricted folders stay out of scope in this editor.
+            </div>
+
+            <div className="form-actions">
+              <button type="submit">Add mapping</button>
+            </div>
+          </form>
+
+          <table className="table-tight" style={{ marginTop: 24 }}>
+            <thead>
+              <tr>
+                <th>App role</th>
+                <th>Shared Drive</th>
+                <th>Mapping editor</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {editableAdminMappings.length > 0 ? (
+                editableAdminMappings.map((mapping) => (
+                  <tr key={`editable-${mapping.id}`}>
+                    <td>{mapping.roleName.replaceAll("_", " ")}</td>
+                    <td>{mapping.sharedDriveName}</td>
+                    <td>
+                      <form action={updateAdminRoleMapping} className="inline-edit-form">
+                        <input type="hidden" name="mappingId" value={mapping.id} />
+                        <input type="email" name="groupEmail" defaultValue={mapping.groupEmail} required />
+                        <select name="accessLevel" defaultValue={mapping.accessLevel}>
+                          <option value="VIEWER">Viewer</option>
+                          <option value="CONTRIBUTOR">Contributor</option>
+                        </select>
+                        <button type="submit" className="button-ghost">
+                          Save
+                        </button>
+                      </form>
+                    </td>
+                    <td>
+                      <form action={deleteAdminRoleMapping}>
+                        <input type="hidden" name="mappingId" value={mapping.id} />
+                        <button type="submit" className="button-ghost">
+                          Remove
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="muted">
+                    No non-restricted app-role mappings available in the current filter.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </section>
       )}
 
