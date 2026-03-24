@@ -34,18 +34,34 @@ export default async function GoogleIntegrationPage() {
   }
 
   const directory = getDirectoryProvider();
-  const mappedGroups = await prisma.groupMapping.findMany({
-    select: { groupEmail: true },
-    distinct: ["groupEmail"],
-    orderBy: { groupEmail: "asc" }
-  });
+  const [roleManagedGroups, accessRoleManagedGroups] = await Promise.all([
+    prisma.groupMapping.findMany({
+      select: { groupEmail: true },
+      distinct: ["groupEmail"],
+      orderBy: { groupEmail: "asc" }
+    }),
+    prisma.accessRoleMapping.findMany({
+      select: { groupEmail: true },
+      distinct: ["groupEmail"],
+      orderBy: { groupEmail: "asc" }
+    })
+  ]);
+
+  const mappedGroups = Array.from(
+    new Set([
+      ...roleManagedGroups.map((group) => group.groupEmail),
+      ...accessRoleManagedGroups.map((group) => group.groupEmail)
+    ])
+  )
+    .sort((left, right) => left.localeCompare(right))
+    .map((groupEmail) => ({ groupEmail }));
 
   const defaultProbeQuery = session.email;
   const defaultGroupEmail = mappedGroups[0]?.groupEmail ?? "";
   const activeEmployeeSync = new ActiveEmployeeSyncService(directory);
   const offboardingHygiene = new OffboardingHygieneService(directory);
 
-  const [directoryProbe, groupProbe, activeEmployeePreview, offboardingPreview] = await Promise.all([
+  const [directoryProbe, groupProbe, activeEmployeePreview, offboardingPreview, managedGroupSnapshots] = await Promise.all([
     directory
       .searchUsers(defaultProbeQuery)
       .then((users) => ({
@@ -89,7 +105,31 @@ export default async function GoogleIntegrationPage() {
       directFolderRemovalCount: 0,
       users: [],
       error: formatProbeError(error)
-    }))
+    })),
+    Promise.all(
+      mappedGroups.map(async (group) => {
+        try {
+          const members = await directory.listGroupMembers(group.groupEmail);
+          return {
+            groupEmail: group.groupEmail,
+            ok: true as const,
+            count: members.length,
+            members: members
+              .map((member) => ({
+                email: member.email,
+                role: member.role
+              }))
+              .sort((left, right) => left.email.localeCompare(right.email))
+          };
+        } catch (error) {
+          return {
+            groupEmail: group.groupEmail,
+            ok: false as const,
+            error: formatProbeError(error)
+          };
+        }
+      })
+    )
   ]);
 
   const configChecks = [
@@ -192,6 +232,52 @@ export default async function GoogleIntegrationPage() {
             )}
           </div>
         </article>
+      </section>
+
+      <section className="panel">
+        <div className="section-head">
+          <div>
+            <h3>Managed Google Groups</h3>
+            <p className="muted">
+              Inspect the real members of each Google Group referenced by the RBAC policy.
+            </p>
+          </div>
+          <span className="pill">{managedGroupSnapshots.length} groups</span>
+        </div>
+        <div className="two-up">
+          {managedGroupSnapshots.map((group) => (
+            <article key={group.groupEmail} className="panel inset-panel">
+              <div className="section-head">
+                <div>
+                  <h3>{group.groupEmail}</h3>
+                  <p className="muted">
+                    {group.ok ? `${group.count} members returned from Google Directory.` : "Unable to read members."}
+                  </p>
+                </div>
+                <span className={`pill ${group.ok ? "" : "warn"}`}>{group.ok ? group.count : "Error"}</span>
+              </div>
+              {group.ok ? (
+                <ul className="audit-list">
+                  {group.members.length > 0 ? (
+                    group.members.map((member) => (
+                      <li key={`${group.groupEmail}-${member.email}`} className="activity-item">
+                        <strong className="activity-title">{member.email}</strong>
+                        <span className="activity-detail">{member.role}</span>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="activity-item">
+                      <strong className="activity-title">No members</strong>
+                      <span className="activity-detail">This managed group is currently empty.</span>
+                    </li>
+                  )}
+                </ul>
+              ) : (
+                <div className="card-note">{group.error}</div>
+              )}
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="panel">
