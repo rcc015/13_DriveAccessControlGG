@@ -9,7 +9,8 @@
     "lint": "next lint",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "db:seed": "node --import tsx prisma/seed.ts"
+    "db:seed": "node --import tsx prisma/seed.ts",
+    "reports:quarterly:auto": "node --import tsx scripts/run-quarterly-report.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",
