@@ -2,11 +2,11 @@ import type { GeneratedFileRef } from "@/types/domain";
 import type { DriveFolderRef, DriveProvider, DrivePrincipalRef, RestrictedFolderAccessSnapshot } from "@/lib/google/types";
 
 export class MockDriveProvider implements DriveProvider {
-  async uploadReport(name: string, _mimeType: string, _content: Buffer): Promise<GeneratedFileRef> {
+  async uploadReport(name: string, _mimeType: string, _content: Buffer, parentFolderId?: string): Promise<GeneratedFileRef> {
     return {
       fileId: `mock-file-${Date.now()}`,
       name,
-      webViewLink: `https://mock.drive.local/reports/${encodeURIComponent(name)}`
+      webViewLink: `https://mock.drive.local/reports/${encodeURIComponent(parentFolderId ? `${parentFolderId}/${name}` : name)}`
     };
   }
 
@@ -25,6 +25,14 @@ export class MockDriveProvider implements DriveProvider {
       id: `mock-folder-${path}`.replace(/[\/\s]+/g, "-"),
       name: path.split(" / ").at(-1) ?? path,
       webViewLink: `https://mock.drive.local/folders/${encodeURIComponent(path)}`
+    };
+  }
+
+  async ensureChildFolder(parentId: string, name: string): Promise<DriveFolderRef> {
+    return {
+      id: `mock-folder-${parentId}-${name}`.replace(/[\/\s]+/g, "-"),
+      name,
+      webViewLink: `https://mock.drive.local/folders/${encodeURIComponent(`${parentId}/${name}`)}`
     };
   }
 

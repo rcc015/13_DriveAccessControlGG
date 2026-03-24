@@ -14,7 +14,9 @@ export class ReportService {
   async generateAndArchive(reportType: ReportType, actorEmail: string) {
     const payload = await this.getPayload(reportType);
     const built = buildCsvReport(reportType, payload);
-    const uploaded = await this.drive.uploadReport(built.fileName, built.mimeType, built.content);
+    const quarterLabel = reportType === "QUARTERLY_ACCESS_REVIEW" ? getQuarterLabelFromPayload(payload) : null;
+    const reportsFolderId = await this.resolveReportFolderId(reportType, quarterLabel);
+    const uploaded = await this.drive.uploadReport(built.fileName, built.mimeType, built.content, reportsFolderId);
 
     const report = await prisma.generatedReport.create({
       data: {
@@ -33,7 +35,8 @@ export class ReportService {
       notes: `${reportType} uploaded to Google Drive`,
       metadata: {
         reportId: report.id,
-        fileId: uploaded.fileId
+        fileId: uploaded.fileId,
+        quarterLabel
       }
     });
 
@@ -57,6 +60,7 @@ export class ReportService {
         });
       case "QUARTERLY_ACCESS_REVIEW":
         return prisma.accessReview.findMany({
+          where: { quarterLabel: getCurrentQuarterLabel() },
           include: { items: true }
         });
       case "RESTRICTED_ACCESS_EXCEPTIONS":
@@ -82,4 +86,44 @@ export class ReportService {
         return { message: `Unsupported report type ${reportType}` };
     }
   }
+
+  private async resolveReportFolderId(reportType: ReportType, quarterLabel: string | null) {
+    if (reportType !== "QUARTERLY_ACCESS_REVIEW" || !quarterLabel) {
+      return undefined;
+    }
+
+    const rootFolderId = process.env.GOOGLE_REPORTS_FOLDER_ID;
+    if (!rootFolderId) {
+      return undefined;
+    }
+
+    const folder = await this.drive.ensureChildFolder(rootFolderId, normalizeQuarterFolderName(quarterLabel));
+    return folder.id ?? undefined;
+  }
+}
+
+function getCurrentQuarterLabel(date = new Date()) {
+  const month = date.getUTCMonth();
+  const quarter = Math.floor(month / 3) + 1;
+  const year = date.getUTCFullYear();
+  return `Q${quarter} ${year}`;
+}
+
+function getQuarterLabelFromPayload(payload: unknown) {
+  if (!Array.isArray(payload) || payload.length === 0) {
+    return getCurrentQuarterLabel();
+  }
+
+  const first = payload[0] as { quarterLabel?: string | null };
+  return first.quarterLabel?.trim() || getCurrentQuarterLabel();
+}
+
+function normalizeQuarterFolderName(quarterLabel: string) {
+  const match = quarterLabel.match(/^Q([1-4])\s+(\d{4})$/i);
+  if (!match) {
+    return quarterLabel.replace(/\s+/g, "_").replace(/^Q/i, "") + "_Reports";
+  }
+
+  const [, quarter, year] = match;
+  return `${year}_Q${quarter}_Reports`;
 }

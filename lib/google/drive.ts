@@ -13,7 +13,7 @@ export class GoogleDriveProvider implements DriveProvider {
     auth: createDelegatedGoogleAuth(DRIVE_SCOPES)
   });
 
-  async uploadReport(name: string, mimeType: string, content: Buffer): Promise<GeneratedFileRef> {
+  async uploadReport(name: string, mimeType: string, content: Buffer, parentFolderId?: string): Promise<GeneratedFileRef> {
     const body = new PassThrough();
     body.end(content);
 
@@ -21,7 +21,11 @@ export class GoogleDriveProvider implements DriveProvider {
       supportsAllDrives: true,
       requestBody: {
         name,
-        parents: env.GOOGLE_REPORTS_FOLDER_ID ? [env.GOOGLE_REPORTS_FOLDER_ID] : undefined
+        parents: parentFolderId
+          ? [parentFolderId]
+          : env.GOOGLE_REPORTS_FOLDER_ID
+            ? [env.GOOGLE_REPORTS_FOLDER_ID]
+            : undefined
       },
       media: {
         mimeType,
@@ -60,6 +64,28 @@ export class GoogleDriveProvider implements DriveProvider {
     });
 
     return response.data;
+  }
+
+  async ensureChildFolder(parentId: string, name: string) {
+    const response = await this.client.files.list({
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+      pageSize: 10,
+      q: [
+        `name = '${escapeDriveQueryValue(name)}'`,
+        "mimeType = 'application/vnd.google-apps.folder'",
+        `'${parentId}' in parents`,
+        "trashed = false"
+      ].join(" and "),
+      fields: "files(id,name,webViewLink)"
+    });
+
+    const existing = response.data.files?.[0];
+    if (existing?.id) {
+      return existing;
+    }
+
+    return this.createFolder(parentId, name);
   }
 
   async ensureSharedDriveGroupAccess(sharedDriveName: string, groupEmail: string, role: string) {
