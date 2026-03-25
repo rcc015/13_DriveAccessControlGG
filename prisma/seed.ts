@@ -45,7 +45,7 @@ async function main() {
       name: "ACCESS_ADMIN",
       description: "Legacy broad admin role. Keep only for compatibility; use drive-specific admin roles for new assignments."
     },
-    { name: "QMS_ACCESS_ADMIN", description: "Manages RBAC group membership for 01_QMS_Working." },
+    { name: "QMS_ACCESS_ADMIN", description: "Manages RBAC group membership for 01_QualityAssurance_Working." },
     { name: "STRATEGIC_ACCESS_ADMIN", description: "Manages RBAC group membership for 02_Strategic_Working." },
     { name: "OPERATIONAL_ACCESS_ADMIN", description: "Manages RBAC group membership for 03_Operational_Working." },
     { name: "SUPPORT_ACCESS_ADMIN", description: "Manages RBAC group membership for 04_Support_Working." },
@@ -357,8 +357,13 @@ async function main() {
     });
   }
 
+  await prisma.sharedDrive.updateMany({
+    where: { name: "01_QMS_Working" },
+    data: { name: "01_QualityAssurance_Working" }
+  });
+
   const drives = [
-    "01_QMS_Working",
+    "01_QualityAssurance_Working",
     "02_Strategic_Working",
     "03_Operational_Working",
     "04_Support_Working"
@@ -373,14 +378,15 @@ async function main() {
   }
 
   const restrictedFolders = [
-    ["01_QMS_Working", "08_QMS_Governance", "01_QMS_Working / 08_QMS_Governance"],
+    ["01_QualityAssurance_Working", "05_Audits", "01_QualityAssurance_Working / 05_Audits"],
     ["04_Support_Working", "01_HumanResources", "04_Support_Working / 01_HumanResources"],
     ["04_Support_Working", "05_Finance", "04_Support_Working / 05_Finance"],
     ["04_Support_Working", "06_Legal", "04_Support_Working / 06_Legal"]
   ] as const;
 
   const legacyRestrictedFolderPaths = [
-    ["01_QMS_Working / 00_Quality / 08_QMS_Governance", "01_QMS_Working / 08_QMS_Governance"],
+    ["01_QMS_Working / 00_Quality / 08_QMS_Governance", "01_QualityAssurance_Working / 05_Audits"],
+    ["01_QMS_Working / 08_QMS_Governance", "01_QualityAssurance_Working / 05_Audits"],
     ["04_Support_Working / 03_SupportProcesses / 01_HumanResources", "04_Support_Working / 01_HumanResources"],
     ["04_Support_Working / 03_SupportProcesses / 05_Finance", "04_Support_Working / 05_Finance"],
     ["04_Support_Working / 03_SupportProcesses / 06_Legal", "04_Support_Working / 06_Legal"]
@@ -389,7 +395,10 @@ async function main() {
   for (const [legacyPath, currentPath] of legacyRestrictedFolderPaths) {
     await prisma.restrictedFolder.updateMany({
       where: { path: legacyPath },
-      data: { path: currentPath }
+      data: {
+        path: currentPath,
+        name: currentPath.endsWith("/ 05_Audits") ? "05_Audits" : undefined
+      }
     });
   }
 
@@ -467,7 +476,7 @@ async function main() {
   });
 
   const driveByName = {
-    qms: await prisma.sharedDrive.findUniqueOrThrow({ where: { name: "01_QMS_Working" } }),
+    qms: await prisma.sharedDrive.findUniqueOrThrow({ where: { name: "01_QualityAssurance_Working" } }),
     strategic: await prisma.sharedDrive.findUniqueOrThrow({ where: { name: "02_Strategic_Working" } }),
     operational: await prisma.sharedDrive.findUniqueOrThrow({ where: { name: "03_Operational_Working" } }),
     support: await prisma.sharedDrive.findUniqueOrThrow({ where: { name: "04_Support_Working" } })
@@ -475,7 +484,7 @@ async function main() {
 
   const restrictedByPath = {
     qmsGovernance: await prisma.restrictedFolder.findUniqueOrThrow({
-      where: { path: "01_QMS_Working / 08_QMS_Governance" }
+      where: { path: "01_QualityAssurance_Working / 05_Audits" }
     }),
     hr: await prisma.restrictedFolder.findUniqueOrThrow({
       where: { path: "04_Support_Working / 01_HumanResources" }

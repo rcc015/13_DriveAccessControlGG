@@ -313,7 +313,7 @@ export default async function RoleMatrixPage({ searchParams }: RoleMatrixPagePro
       id: role.id,
       name: role.displayName,
       description: role.description,
-      family: role.department === "Cross-drive" ? "Cross-drive" : `${role.department === "QMS" ? "01_QMS_Working" : role.department === "Strategic" ? "02_Strategic_Working" : role.department === "Operational" ? "03_Operational_Working" : role.department === "Support" ? "04_Support_Working" : role.department}`,
+      family: role.department === "Cross-drive" ? "Cross-drive" : `${role.department === "QMS" ? "01_QualityAssurance_Working" : role.department === "Strategic" ? "02_Strategic_Working" : role.department === "Operational" ? "03_Operational_Working" : role.department === "Support" ? "04_Support_Working" : role.department}`,
       mappings: role.mappings.map((mapping) => ({
         id: mapping.id,
         accessLevel: mapping.accessLevel,
