@@ -25,7 +25,8 @@ function humanizeActionType(actionType: string) {
     RESTRICTED_ACCESS_APPROVED: "Restricted access approved",
     RESTRICTED_ACCESS_REJECTED: "Restricted access rejected",
     ACTIVE_EMPLOYEE_SYNC_COMPLETED: "Active employee sync completed",
-    OFFBOARD_COMPLETED: "Offboarding completed"
+    OFFBOARD_COMPLETED: "Offboarding completed",
+    ORPHANED_MEMBERSHIP_CLEANUP: "Orphaned memberships cleaned"
   };
 
   if (explicit[actionType]) {
