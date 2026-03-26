@@ -205,6 +205,207 @@ export async function deleteAdminRoleMapping(formData: FormData) {
   revalidatePath("/role-matrix");
 }
 
+export async function createBusinessRoleMapping(formData: FormData) {
+  const session = await requireSession();
+  ensureCanManageMappings(session.appRole);
+
+  const accessRoleId = String(formData.get("accessRoleId") ?? "").trim();
+  const sharedDriveId = String(formData.get("sharedDriveId") ?? "").trim();
+  const groupEmail = String(formData.get("groupEmail") ?? "").trim().toLowerCase();
+  const accessLevel = String(formData.get("accessLevel") ?? "").trim().toUpperCase();
+
+  if (!accessRoleId || !sharedDriveId || !groupEmail || !accessLevel) {
+    throw new Error("Business role, drive, group, and access level are required.");
+  }
+
+  if (!ALLOWED_ACCESS_LEVELS.has(accessLevel)) {
+    throw new Error("This workflow only supports VIEWER or CONTRIBUTOR.");
+  }
+
+  const [accessRole, drive] = await Promise.all([
+    prisma.accessRole.findUnique({ where: { id: accessRoleId } }),
+    prisma.sharedDrive.findUnique({ where: { id: sharedDriveId } })
+  ]);
+
+  if (!accessRole || !drive) {
+    throw new Error("Business role or Shared Drive not found.");
+  }
+
+  const existing = await prisma.accessRoleMapping.findFirst({
+    where: {
+      accessRoleId,
+      sharedDriveId,
+      restrictedFolderId: null,
+      groupEmail
+    }
+  });
+
+  if (existing) {
+    await prisma.accessRoleMapping.update({
+      where: { id: existing.id },
+      data: { accessLevel }
+    });
+
+    await new AuditLogService().record({
+      actorEmail: session.email,
+      actionType: "ROLE_MATRIX_MAPPING_UPDATED",
+      targetGroupEmail: groupEmail,
+      targetDriveName: drive.name,
+      result: "SUCCESS",
+      notes: `Updated business-role mapping for ${accessRole.displayName} on ${drive.name}`,
+      metadata: {
+        mappingId: existing.id,
+        accessRoleCode: accessRole.code,
+        accessRoleName: accessRole.displayName,
+        previousAccessLevel: existing.accessLevel,
+        newAccessLevel: accessLevel
+      }
+    });
+  } else {
+    const created = await prisma.accessRoleMapping.create({
+      data: {
+        accessRoleId,
+        sharedDriveId,
+        restrictedFolderId: null,
+        groupEmail,
+        accessLevel
+      }
+    });
+
+    await new AuditLogService().record({
+      actorEmail: session.email,
+      actionType: "ROLE_MATRIX_MAPPING_CREATED",
+      targetGroupEmail: groupEmail,
+      targetDriveName: drive.name,
+      result: "SUCCESS",
+      notes: `Created business-role mapping for ${accessRole.displayName} on ${drive.name}`,
+      metadata: {
+        mappingId: created.id,
+        accessRoleCode: accessRole.code,
+        accessRoleName: accessRole.displayName,
+        accessLevel
+      }
+    });
+  }
+
+  revalidatePath("/role-matrix");
+}
+
+export async function updateBusinessRoleMapping(formData: FormData) {
+  const session = await requireSession();
+  ensureCanManageMappings(session.appRole);
+
+  const mappingId = String(formData.get("mappingId") ?? "").trim();
+  const groupEmail = String(formData.get("groupEmail") ?? "").trim().toLowerCase();
+  const accessLevel = String(formData.get("accessLevel") ?? "").trim().toUpperCase();
+
+  if (!mappingId || !groupEmail || !accessLevel) {
+    throw new Error("Mapping, group, and access level are required.");
+  }
+
+  if (!ALLOWED_ACCESS_LEVELS.has(accessLevel)) {
+    throw new Error("This workflow only supports VIEWER or CONTRIBUTOR.");
+  }
+
+  const mapping = await prisma.accessRoleMapping.findUnique({
+    where: { id: mappingId },
+    include: {
+      accessRole: true,
+      sharedDrive: true
+    }
+  });
+
+  if (!mapping || mapping.restrictedFolderId) {
+    throw new Error("Only non-restricted business role mappings can be edited here.");
+  }
+
+  const conflict = await prisma.accessRoleMapping.findFirst({
+    where: {
+      id: { not: mappingId },
+      accessRoleId: mapping.accessRoleId,
+      sharedDriveId: mapping.sharedDriveId,
+      restrictedFolderId: null,
+      groupEmail
+    }
+  });
+
+  if (conflict) {
+    throw new Error("Another mapping already exists for this business role, drive, and group.");
+  }
+
+  const updated = await prisma.accessRoleMapping.update({
+    where: { id: mappingId },
+    data: {
+      groupEmail,
+      accessLevel
+    }
+  });
+
+  await new AuditLogService().record({
+    actorEmail: session.email,
+    actionType: "ROLE_MATRIX_MAPPING_UPDATED",
+    targetGroupEmail: updated.groupEmail,
+    targetDriveName: mapping.sharedDrive.name,
+    result: "SUCCESS",
+    notes: `Updated business-role mapping for ${mapping.accessRole.displayName} on ${mapping.sharedDrive.name}`,
+    metadata: {
+      mappingId: mapping.id,
+      accessRoleCode: mapping.accessRole.code,
+      accessRoleName: mapping.accessRole.displayName,
+      previousGroupEmail: mapping.groupEmail,
+      newGroupEmail: updated.groupEmail,
+      previousAccessLevel: mapping.accessLevel,
+      newAccessLevel: updated.accessLevel
+    }
+  });
+
+  revalidatePath("/role-matrix");
+}
+
+export async function deleteBusinessRoleMapping(formData: FormData) {
+  const session = await requireSession();
+  ensureCanManageMappings(session.appRole);
+
+  const mappingId = String(formData.get("mappingId") ?? "").trim();
+
+  if (!mappingId) {
+    throw new Error("Mapping id is required.");
+  }
+
+  const mapping = await prisma.accessRoleMapping.findUnique({
+    where: { id: mappingId },
+    include: {
+      accessRole: true,
+      sharedDrive: true
+    }
+  });
+
+  if (!mapping || mapping.restrictedFolderId) {
+    throw new Error("Only non-restricted business role mappings can be removed here.");
+  }
+
+  await prisma.accessRoleMapping.delete({
+    where: { id: mappingId }
+  });
+
+  await new AuditLogService().record({
+    actorEmail: session.email,
+    actionType: "ROLE_MATRIX_MAPPING_REMOVED",
+    targetGroupEmail: mapping.groupEmail,
+    targetDriveName: mapping.sharedDrive.name,
+    result: "SUCCESS",
+    notes: `Removed business-role mapping for ${mapping.accessRole.displayName} on ${mapping.sharedDrive.name}`,
+    metadata: {
+      mappingId: mapping.id,
+      accessRoleCode: mapping.accessRole.code,
+      accessRoleName: mapping.accessRole.displayName,
+      accessLevel: mapping.accessLevel
+    }
+  });
+
+  revalidatePath("/role-matrix");
+}
+
 function ensureCanManageMappings(appRole: string) {
   if (!adminAssignmentRoles.includes(appRole as (typeof adminAssignmentRoles)[number])) {
     throw new Error("You are not allowed to modify the role matrix.");

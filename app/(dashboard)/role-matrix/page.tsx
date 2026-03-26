@@ -2,8 +2,11 @@ import { Fragment } from "react";
 import { AccessDenied } from "@/components/dashboard/access-denied";
 import {
   createAdminRoleMapping,
+  createBusinessRoleMapping,
   deleteAdminRoleMapping,
-  updateAdminRoleMapping
+  deleteBusinessRoleMapping,
+  updateAdminRoleMapping,
+  updateBusinessRoleMapping
 } from "@/app/(dashboard)/role-matrix/actions";
 import { adminAndReadRoles, hasAnyRole } from "@/lib/auth/authorization";
 import { requireSession } from "@/lib/auth/session";
@@ -355,6 +358,16 @@ export default async function RoleMatrixPage({ searchParams }: RoleMatrixPagePro
         }))
     )
     .sort((left, right) => `${left.roleName}-${left.sharedDriveName}-${left.groupEmail}`.localeCompare(`${right.roleName}-${right.sharedDriveName}-${right.groupEmail}`));
+  const editableBusinessMappings = businessRoles
+    .flatMap((role) =>
+      role.mappings
+        .filter((mapping) => !mapping.restrictedFolderPath)
+        .map((mapping) => ({
+          ...mapping,
+          roleName: role.name
+        }))
+    )
+    .sort((left, right) => `${left.roleName}-${left.sharedDriveName}-${left.groupEmail}`.localeCompare(`${right.roleName}-${right.sharedDriveName}-${right.groupEmail}`));
 
   return (
     <div className="stack">
@@ -586,6 +599,121 @@ export default async function RoleMatrixPage({ searchParams }: RoleMatrixPagePro
           <p className="matrix-note">
             These roles represent company vocabulary like Quality Manager and Software Developer. They are stored and assignable, but still separate from the live admin-role membership workflow.
           </p>
+        </section>
+      )}
+
+      {showBusinessCatalog && (
+        <section className="panel">
+          <div className="section-head">
+            <div>
+              <h3>Business role mapping editor</h3>
+              <p className="muted">
+                Add drive-level `Viewer` or `Contributor` access to business roles when the need is clear and the
+                folder is not restricted.
+              </p>
+            </div>
+            <span className="pill">V1 safe edit</span>
+          </div>
+
+          <form action={createBusinessRoleMapping} className="form-grid">
+            <label className="field">
+              <span>Business role</span>
+              <select name="accessRoleId" required defaultValue="">
+                <option value="" disabled>
+                  Select business role
+                </option>
+                {accessRoles.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.displayName}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field">
+              <span>Shared drive</span>
+              <select name="sharedDriveId" required defaultValue="">
+                <option value="" disabled>
+                  Select Shared Drive
+                </option>
+                {drives.map((drive) => (
+                  <option key={drive.id} value={drive.id}>
+                    {drive.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field field-full">
+              <span>Google group</span>
+              <input type="email" name="groupEmail" placeholder="grp-quality-editor@conceivable.life" required />
+            </label>
+
+            <label className="field">
+              <span>Access level</span>
+              <select name="accessLevel" required defaultValue="VIEWER">
+                <option value="VIEWER">Viewer</option>
+                <option value="CONTRIBUTOR">Contributor</option>
+              </select>
+            </label>
+
+            <div className="card-note field-full">
+              This editor only manages non-restricted drive mappings. Restricted folders like audits, HR, finance, and
+              legal stay governed separately.
+            </div>
+
+            <div className="form-actions">
+              <button type="submit">Add business mapping</button>
+            </div>
+          </form>
+
+          <table className="table-tight" style={{ marginTop: 24 }}>
+            <thead>
+              <tr>
+                <th>Business role</th>
+                <th>Shared Drive</th>
+                <th>Mapping editor</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {editableBusinessMappings.length > 0 ? (
+                editableBusinessMappings.map((mapping) => (
+                  <tr key={`editable-business-${mapping.id}`}>
+                    <td>{mapping.roleName}</td>
+                    <td>{mapping.sharedDriveName}</td>
+                    <td>
+                      <form action={updateBusinessRoleMapping} className="inline-edit-form">
+                        <input type="hidden" name="mappingId" value={mapping.id} />
+                        <input type="email" name="groupEmail" defaultValue={mapping.groupEmail} required />
+                        <select name="accessLevel" defaultValue={mapping.accessLevel}>
+                          <option value="VIEWER">Viewer</option>
+                          <option value="CONTRIBUTOR">Contributor</option>
+                        </select>
+                        <button type="submit" className="button-ghost">
+                          Save
+                        </button>
+                      </form>
+                    </td>
+                    <td>
+                      <form action={deleteBusinessRoleMapping}>
+                        <input type="hidden" name="mappingId" value={mapping.id} />
+                        <button type="submit" className="button-ghost">
+                          Remove
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="muted">
+                    No non-restricted business-role mappings available in the current filter.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </section>
       )}
 
