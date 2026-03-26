@@ -56,6 +56,10 @@ function getRoleForEmail(email: string): AppRoleName {
   return overrides[email.toLowerCase()] ?? env.MOCK_USER_ROLE ?? "SUPER_ADMIN";
 }
 
+function shouldUseSecureCookies() {
+  return (env.APP_BASE_URL ?? "").startsWith("https://");
+}
+
 export async function getSession(): Promise<AppSession | null> {
   const allowedEmails = getAllowedAdminEmails();
 
@@ -122,7 +126,7 @@ export async function createSessionCookie(session: AppSession) {
   cookieStore.set(SESSION_COOKIE_NAME, serializeSignedValue(JSON.stringify(payload)), {
     httpOnly: true,
     sameSite: "lax",
-    secure: false,
+    secure: shouldUseSecureCookies(),
     path: "/",
     maxAge: 60 * 60 * 8
   });
@@ -138,7 +142,7 @@ export async function setOAuthStateCookie(state: string) {
   cookieStore.set(STATE_COOKIE_NAME, serializeSignedValue(state), {
     httpOnly: true,
     sameSite: "lax",
-    secure: false,
+    secure: shouldUseSecureCookies(),
     path: "/",
     maxAge: 60 * 10
   });
