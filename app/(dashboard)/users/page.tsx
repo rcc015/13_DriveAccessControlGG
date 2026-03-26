@@ -256,7 +256,8 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
           </div>
         </form>
         <p className="card-note">
-          Reviewer is app-only and does not grant Shared Drive access. Legacy `ACCESS_ADMIN` is hidden for new assignments.
+          App roles can remain app-only, or they can inherit non-restricted Shared Drive visibility when the role matrix maps
+          them to Google Groups. Legacy `ACCESS_ADMIN` is hidden for new assignments.
         </p>
       </section>
 
@@ -356,7 +357,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
                   <div className="muted">
                     {role.grantsInheritedAccess
                       ? `${role.drives.length} drive(s), ${role.mappedGroups.length} group mapping(s)`
-                      : "App-only permissions, no inherited drive access"}
+                      : "No drive mappings configured yet; app-only by default"}
                   </div>
                 </li>
               ))}
@@ -485,8 +486,11 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
       <section className="panel">
         <div className="section-head">
           <div>
-            <h3>Mapped Google Groups</h3>
-            <p className="muted">Direct permissions are intentionally absent from this screen.</p>
+            <h3>Policy-mapped Google Groups</h3>
+            <p className="muted">
+              This is policy configuration only: role-to-group mappings that define the intended path to Shared Drive access.
+              It does not mean those roles are currently assigned to users.
+            </p>
           </div>
           <span className={`pill ${env.GOOGLE_INTEGRATION_MODE === "google" ? "" : "warn"}`}>
             {env.GOOGLE_INTEGRATION_MODE === "google" ? "Live integration" : "Mock integration"}
@@ -518,7 +522,9 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
         <div className="section-head">
           <div>
             <h3>Current app role assignments</h3>
-            <p className="muted">These assignments drive default Shared Drive access through mapped groups.</p>
+            <p className="muted">
+              This is the real local RBAC state. Only users listed here currently hold app roles in the application.
+            </p>
           </div>
           <span className="pill">Local RBAC state</span>
         </div>
