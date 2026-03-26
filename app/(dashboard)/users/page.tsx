@@ -155,15 +155,22 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
       drives
     };
   });
+  const assignedAppRoleUsers = new Set(assignments.map((assignment) => assignment.user.email));
+  const assignedAccessRoleUsers = new Set(accessAssignments.map((assignment) => assignment.user.email));
   type ActiveMembership = (typeof activeMemberships)[number];
   const membershipsByUser = activeMemberships.reduce<
     Array<{
       email: string;
       displayName: string;
       memberships: ActiveMembership[];
+      hasLocalAssignments: boolean;
+      appRoleAssignmentCount: number;
+      accessRoleAssignmentCount: number;
     }>
   >((acc, membership) => {
     const existing = acc.find((item) => item.email === membership.user.email);
+    const hasAppAssignment = assignedAppRoleUsers.has(membership.user.email);
+    const hasAccessAssignment = assignedAccessRoleUsers.has(membership.user.email);
 
     if (existing) {
       existing.memberships.push(membership);
@@ -173,7 +180,12 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
     acc.push({
       email: membership.user.email,
       displayName: membership.user.displayName,
-      memberships: [membership]
+      memberships: [membership],
+      hasLocalAssignments: hasAppAssignment || hasAccessAssignment,
+      appRoleAssignmentCount: hasAppAssignment ? assignments.filter((assignment) => assignment.user.email === membership.user.email).length : 0,
+      accessRoleAssignmentCount: hasAccessAssignment
+        ? accessAssignments.filter((assignment) => assignment.user.email === membership.user.email).length
+        : 0
     });
 
     return acc;
@@ -573,8 +585,12 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
       <section className="panel">
         <div className="section-head">
           <div>
-            <h3>Active memberships by user</h3>
-            <p className="muted">Derived Google Group access currently active in the local RBAC state.</p>
+            <h3>Active derived memberships by user</h3>
+            <p className="muted">
+              This section shows active `GroupMembership` records currently in force. These may exist without a current app
+              role or business access role assignment if legacy data, seed data, or incomplete cleanup left memberships in
+              place.
+            </p>
           </div>
           <span className="pill warn">Operational view</span>
         </div>
@@ -582,8 +598,19 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
           {membershipsByUser.length > 0 ? (
             membershipsByUser.map((entry) => (
               <article key={entry.email} className="panel inset-panel">
-                <h3>{entry.displayName}</h3>
-                <p className="muted">{entry.email}</p>
+                <div className="section-head">
+                  <div>
+                    <h3>{entry.displayName}</h3>
+                    <p className="muted">{entry.email}</p>
+                  </div>
+                  <span className={`pill ${entry.hasLocalAssignments ? "" : "warn"}`}>
+                    {entry.hasLocalAssignments ? "Backed by local assignment" : "Membership without local assignment"}
+                  </span>
+                </div>
+                <p className="muted">
+                  {entry.appRoleAssignmentCount} app role assignment(s), {entry.accessRoleAssignmentCount} business access
+                  role assignment(s)
+                </p>
                 <ul className="clean">
                   {entry.memberships.map((membership) => (
                     <li key={membership.id}>
