@@ -1,8 +1,8 @@
 import { AccessDenied } from "@/components/dashboard/access-denied";
+import { OrphanedMembershipCleanupForm } from "@/components/dashboard/orphaned-membership-cleanup-form";
 import {
   assignUserAccessRole,
   assignUserRole,
-  cleanupOrphanedMemberships,
   removeUserAccessRole,
   removeUserRole
 } from "@/app/(dashboard)/users/actions";
@@ -613,12 +613,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
                   role assignment(s)
                 </p>
                 {!entry.hasLocalAssignments ? (
-                  <form action={cleanupOrphanedMemberships}>
-                    <input type="hidden" name="userEmail" value={entry.email} />
-                    <button type="submit" className="button-ghost">
-                      Clean up orphaned memberships
-                    </button>
-                  </form>
+                  <OrphanedMembershipCleanupForm userEmail={entry.email} />
                 ) : null}
                 <ul className="clean">
                   {entry.memberships.map((membership) => (

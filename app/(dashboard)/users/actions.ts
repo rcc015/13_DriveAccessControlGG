@@ -4,8 +4,16 @@ import { revalidatePath } from "next/cache";
 import { adminAssignmentRoles, hasAnyRole } from "@/lib/auth/authorization";
 import { prisma } from "@/lib/db/prisma";
 import { requireSession } from "@/lib/auth/session";
+import { getDirectoryProvider } from "@/lib/google/provider-factory";
 import { GroupMembershipService } from "@/lib/services/group-membership-service";
 import { AuditLogService } from "@/lib/services/audit-log-service";
+
+export interface CleanupOrphanedMembershipState {
+  ok: boolean;
+  message: string;
+  removed: number;
+  failed: number;
+}
 
 export async function assignUserRole(formData: FormData) {
   const session = await requireSession();
@@ -369,102 +377,170 @@ export async function removeUserAccessRole(formData: FormData) {
   revalidatePath("/role-matrix");
 }
 
-export async function cleanupOrphanedMemberships(formData: FormData) {
-  const session = await requireSession();
+export async function cleanupOrphanedMemberships(
+  _previousState: CleanupOrphanedMembershipState,
+  formData: FormData
+): Promise<CleanupOrphanedMembershipState> {
+  try {
+    const session = await requireSession();
 
-  if (!hasAnyRole(session, adminAssignmentRoles)) {
-    throw new Error("Only administrative roles can clean orphaned memberships.");
-  }
+    if (!hasAnyRole(session, adminAssignmentRoles)) {
+      return {
+        ok: false,
+        message: "Only administrative roles can clean orphaned memberships.",
+        removed: 0,
+        failed: 0
+      };
+    }
 
-  const userEmail = String(formData.get("userEmail") ?? "").trim().toLowerCase();
+    const userEmail = String(formData.get("userEmail") ?? "").trim().toLowerCase();
 
-  if (!userEmail) {
-    throw new Error("User email is required.");
-  }
+    if (!userEmail) {
+      return {
+        ok: false,
+        message: "User email is required.",
+        removed: 0,
+        failed: 0
+      };
+    }
 
-  const [userRoles, userAccessRoles, activeMemberships] = await Promise.all([
-    prisma.userRole.findMany({
-      where: {
-        user: { email: userEmail }
-      }
-    }),
-    prisma.userAccessRole.findMany({
-      where: {
-        user: { email: userEmail }
-      }
-    }),
-    prisma.groupMembership.findMany({
-      where: {
-        user: { email: userEmail },
-        revokedAt: null
-      },
-      include: {
-        groupMapping: {
-          include: {
-            sharedDrive: true,
-            restrictedFolder: true
+    const [userRoles, userAccessRoles, activeMemberships] = await Promise.all([
+      prisma.userRole.findMany({
+        where: {
+          user: { email: userEmail }
+        }
+      }),
+      prisma.userAccessRole.findMany({
+        where: {
+          user: { email: userEmail }
+        }
+      }),
+      prisma.groupMembership.findMany({
+        where: {
+          user: { email: userEmail },
+          revokedAt: null
+        },
+        include: {
+          groupMapping: {
+            include: {
+              sharedDrive: true,
+              restrictedFolder: true
+            }
+          },
+          accessRoleMapping: {
+            include: {
+              accessRole: true,
+              sharedDrive: true,
+              restrictedFolder: true
+            }
           }
         },
-        accessRoleMapping: {
-          include: {
-            accessRole: true,
-            sharedDrive: true,
-            restrictedFolder: true
-          }
+        orderBy: [{ grantedAt: "desc" }]
+      })
+    ]);
+
+    if (userRoles.length > 0 || userAccessRoles.length > 0) {
+      return {
+        ok: false,
+        message: "This user still has local role assignments. Remove those first before cleaning memberships.",
+        removed: 0,
+        failed: 0
+      };
+    }
+
+    if (activeMemberships.length === 0) {
+      return {
+        ok: true,
+        message: "No orphaned memberships were found for this user.",
+        removed: 0,
+        failed: 0
+      };
+    }
+
+    const directory = getDirectoryProvider();
+    const auditLog = new AuditLogService();
+    let removed = 0;
+    let failed = 0;
+
+    for (const membership of activeMemberships) {
+      try {
+        const groupEmail = membership.groupMapping?.groupEmail ?? membership.accessRoleMapping?.groupEmail ?? null;
+        const sharedDriveName =
+          membership.groupMapping?.sharedDrive.name ?? membership.accessRoleMapping?.sharedDrive.name ?? null;
+        const restrictedFolderPath =
+          membership.groupMapping?.restrictedFolder?.path ?? membership.accessRoleMapping?.restrictedFolder?.path ?? null;
+
+        if (groupEmail) {
+          await directory.removeGroupMember(groupEmail, userEmail);
         }
-      },
-      orderBy: [{ grantedAt: "desc" }]
-    })
-  ]);
 
-  if (userRoles.length > 0 || userAccessRoles.length > 0) {
-    throw new Error("This user still has local role assignments. Remove those first before cleaning memberships.");
-  }
+        await prisma.groupMembership.update({
+          where: { id: membership.id },
+          data: {
+            revokedAt: new Date(),
+            revokedReason: "Orphaned membership cleaned up through Users module"
+          }
+        });
 
-  if (activeMemberships.length === 0) {
-    return;
-  }
+        await auditLog.record({
+          actorEmail: session.email,
+          actionType: membership.accessRoleMapping ? "ACCESS_ROLE_MEMBERSHIP_REMOVE" : "GROUP_MEMBERSHIP_REMOVE",
+          targetUserEmail: userEmail,
+          targetGroupEmail: groupEmail ?? undefined,
+          targetDriveName: sharedDriveName ?? undefined,
+          targetFolderPath: restrictedFolderPath ?? undefined,
+          result: "SUCCESS",
+          notes: "Orphaned membership cleaned up through Users module"
+        });
 
-  const membershipService = new GroupMembershipService();
-  const auditLog = new AuditLogService();
-  const processedAppMappings = new Set<string>();
-  const processedAccessMappings = new Set<string>();
+        removed += 1;
+      } catch (error) {
+        failed += 1;
 
-  for (const membership of activeMemberships) {
-    if (membership.groupMapping && !processedAppMappings.has(membership.groupMapping.id)) {
-      processedAppMappings.add(membership.groupMapping.id);
-      await membershipService.removeUserFromGroup({
-        actorEmail: session.email,
-        userEmail,
-        groupEmail: membership.groupMapping.groupEmail,
-        sharedDriveName: membership.groupMapping.sharedDrive.name,
-        restrictedFolderPath: membership.groupMapping.restrictedFolder?.path,
-        reason: "Orphaned membership cleaned up through Users module"
-      });
+        await auditLog.record({
+          actorEmail: session.email,
+          actionType: "ORPHANED_MEMBERSHIP_CLEANUP",
+          targetUserEmail: userEmail,
+          targetGroupEmail: membership.groupMapping?.groupEmail ?? membership.accessRoleMapping?.groupEmail ?? undefined,
+          targetDriveName:
+            membership.groupMapping?.sharedDrive.name ?? membership.accessRoleMapping?.sharedDrive.name ?? undefined,
+          targetFolderPath:
+            membership.groupMapping?.restrictedFolder?.path ??
+            membership.accessRoleMapping?.restrictedFolder?.path ??
+            undefined,
+          result: "FAILED",
+          notes: error instanceof Error ? error.message : "Unknown cleanup error"
+        });
+      }
     }
 
-    if (membership.accessRoleMapping && !processedAccessMappings.has(membership.accessRoleMapping.id)) {
-      processedAccessMappings.add(membership.accessRoleMapping.id);
-      await membershipService.removeUserFromAccessRoleGroup({
-        actorEmail: session.email,
-        userEmail,
-        groupEmail: membership.accessRoleMapping.groupEmail,
-        sharedDriveName: membership.accessRoleMapping.sharedDrive.name,
-        restrictedFolderPath: membership.accessRoleMapping.restrictedFolder?.path,
-        reason: "Orphaned membership cleaned up through Users module"
-      });
-    }
+    await auditLog.record({
+      actorEmail: session.email,
+      actionType: "ORPHANED_MEMBERSHIP_CLEANUP",
+      targetUserEmail: userEmail,
+      result: failed > 0 ? "FAILED" : "SUCCESS",
+      notes: `Removed ${removed} orphaned membership(s); ${failed} failed.`
+    });
+
+    revalidatePath("/users");
+    revalidatePath("/access-viewer");
+    revalidatePath("/google-access-monitor");
+
+    return {
+      ok: failed === 0,
+      message:
+        failed === 0
+          ? `Removed ${removed} orphaned membership(s) for ${userEmail}.`
+          : `Removed ${removed} orphaned membership(s), but ${failed} failed. Check Audit Pulse or Reports for details.`,
+      removed,
+      failed
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Cleanup failed unexpectedly.",
+      removed: 0,
+      failed: 0
+    };
   }
-
-  await auditLog.record({
-    actorEmail: session.email,
-    actionType: "ORPHANED_MEMBERSHIP_CLEANUP",
-    targetUserEmail: userEmail,
-    result: "SUCCESS",
-    notes: `Removed ${processedAppMappings.size + processedAccessMappings.size} orphaned membership mapping(s) from active RBAC state.`
-  });
-
-  revalidatePath("/users");
-  revalidatePath("/access-viewer");
-  revalidatePath("/google-access-monitor");
 }
