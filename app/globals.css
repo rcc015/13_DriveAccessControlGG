@@ -53,13 +53,18 @@ a {
 .shell {
   display: grid;
   grid-template-columns: 250px 1fr;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .sidebar {
   padding: 32px 24px;
   border-right: 1px solid var(--border-ultra-light);
   background: var(--bg-main);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .brand {
@@ -145,6 +150,9 @@ a {
 
 .main {
   padding: 34px;
+  height: 100vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .hero {
@@ -1061,15 +1069,23 @@ ul.clean li {
 @media (max-width: 980px) {
   .shell {
     grid-template-columns: 1fr;
+    height: auto;
+    overflow: visible;
   }
 
   .sidebar {
     border-right: 0;
     border-bottom: 1px solid var(--line);
+    position: static;
+    top: auto;
+    height: auto;
+    overflow: visible;
   }
 
   .main {
     padding: 22px;
+    height: auto;
+    overflow: visible;
   }
 
   .kpi,
