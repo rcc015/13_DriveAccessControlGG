@@ -114,6 +114,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
   ]).catch(() => [[], [], [], [], [], [], []] as const);
 
   const roleLabels: Record<AppRoleName, string> = {
+    REQUESTER: "Requester",
     SUPER_ADMIN: "Super Admin",
     ACCESS_ADMIN: "Access Admin (Legacy)",
     QMS_ACCESS_ADMIN: "QMS Access Admin",

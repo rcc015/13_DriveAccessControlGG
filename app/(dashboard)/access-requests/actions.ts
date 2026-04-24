@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { adminAssignmentRoles, hasAnyRole, requestPortalRoles } from "@/lib/auth/authorization";
 import { requireSession } from "@/lib/auth/session";
 import { AccessRequestService } from "@/lib/services/access-request-service";
 
@@ -14,6 +15,11 @@ function parseOptionalDate(value: FormDataEntryValue | null) {
 
 export async function createRestrictedAccessRequest(formData: FormData) {
   const session = await requireSession();
+
+  if (!hasAnyRole(session, requestPortalRoles)) {
+    throw new Error("Your current app role cannot create access requests.");
+  }
+
   const service = new AccessRequestService();
 
   const targetUserEmail = String(formData.get("targetUserEmail") ?? "").trim().toLowerCase();
@@ -39,6 +45,11 @@ export async function createRestrictedAccessRequest(formData: FormData) {
 
 export async function approveRestrictedAccessRequest(formData: FormData) {
   const session = await requireSession();
+
+  if (!hasAnyRole(session, adminAssignmentRoles)) {
+    throw new Error("Only administrative roles can approve access requests.");
+  }
+
   const service = new AccessRequestService();
   const requestId = String(formData.get("requestId") ?? "").trim();
 
@@ -59,6 +70,11 @@ export async function approveRestrictedAccessRequest(formData: FormData) {
 
 export async function rejectRestrictedAccessRequest(formData: FormData) {
   const session = await requireSession();
+
+  if (!hasAnyRole(session, adminAssignmentRoles)) {
+    throw new Error("Only administrative roles can reject access requests.");
+  }
+
   const service = new AccessRequestService();
   const requestId = String(formData.get("requestId") ?? "").trim();
 

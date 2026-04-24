@@ -1,4 +1,5 @@
 export type AppRoleName =
+  | "REQUESTER"
   | "SUPER_ADMIN"
   | "ACCESS_ADMIN"
   | "QMS_ACCESS_ADMIN"

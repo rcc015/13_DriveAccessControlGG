@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { env, getAdminRoleOverrides, getAllowedAdminEmails } from "@/lib/config/env";
+import { env, getAdminRoleOverrides, getAllowedAdminEmails, getAllowedAppEmails } from "@/lib/config/env";
 import type { AppRoleName } from "@/types/domain";
 
 const SESSION_COOKIE_NAME = "drive-access-console-session";
@@ -52,8 +52,32 @@ function parseSignedValue(value: string) {
 }
 
 function getRoleForEmail(email: string): AppRoleName {
+  const normalized = email.toLowerCase();
   const overrides = getAdminRoleOverrides();
-  return overrides[email.toLowerCase()] ?? env.MOCK_USER_ROLE ?? "SUPER_ADMIN";
+  if (overrides[normalized]) {
+    return overrides[normalized];
+  }
+
+  if (getAllowedAdminEmails().includes(normalized)) {
+    return "SUPER_ADMIN";
+  }
+
+  return "REQUESTER";
+}
+
+function isAllowedEmail(email: string) {
+  const normalized = email.toLowerCase();
+  const explicitlyAllowed = getAllowedAppEmails();
+
+  if (explicitlyAllowed.length > 0) {
+    return explicitlyAllowed.includes(normalized);
+  }
+
+  if (env.GOOGLE_HOSTED_DOMAIN) {
+    return normalized.endsWith(`@${env.GOOGLE_HOSTED_DOMAIN.toLowerCase()}`);
+  }
+
+  return true;
 }
 
 function shouldUseSecureCookies() {
@@ -61,20 +85,20 @@ function shouldUseSecureCookies() {
 }
 
 export async function getSession(): Promise<AppSession | null> {
-  const allowedEmails = getAllowedAdminEmails();
+  const allowedAdminEmails = getAllowedAdminEmails();
 
   if (env.AUTH_MODE === "mock") {
-    const email = env.MOCK_USER_EMAIL ?? allowedEmails[0] ?? "admin@example.com";
-    const isAllowed = allowedEmails.length === 0 || allowedEmails.includes(email.toLowerCase());
+    const email = env.MOCK_USER_EMAIL ?? allowedAdminEmails[0] ?? "admin@example.com";
+    const isAllowed = isAllowedEmail(email);
 
     if (!isAllowed) {
-      throw new Error(`Mock user ${email} is not included in ALLOWED_ADMIN_EMAILS.`);
+      throw new Error(`Mock user ${email} is not allowed for this app session.`);
     }
 
     return {
       email,
       displayName: env.MOCK_USER_NAME ?? "Internal Admin",
-      appRole: getRoleForEmail(email)
+      appRole: env.MOCK_USER_ROLE ?? getRoleForEmail(email)
     };
   }
 
@@ -93,7 +117,7 @@ export async function getSession(): Promise<AppSession | null> {
 
   const payload = JSON.parse(parsed) as SignedSessionPayload;
   const isExpired = payload.exp < Date.now();
-  const isAllowed = allowedEmails.length === 0 || allowedEmails.includes(payload.email.toLowerCase());
+  const isAllowed = isAllowedEmail(payload.email);
 
   if (isExpired || !isAllowed) {
     return null;

@@ -4,24 +4,30 @@ import {
   createRestrictedAccessRequest,
   rejectRestrictedAccessRequest
 } from "@/app/(dashboard)/access-requests/actions";
-import { adminAssignmentRoles, hasAnyRole } from "@/lib/auth/authorization";
+import { adminAssignmentRoles, hasAnyRole, requestPortalRoles } from "@/lib/auth/authorization";
 import { requireSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 
 export default async function AccessRequestsPage() {
   const session = await requireSession();
+  const isAdmin = hasAnyRole(session, adminAssignmentRoles);
 
-  if (!hasAnyRole(session, adminAssignmentRoles)) {
+  if (!hasAnyRole(session, requestPortalRoles)) {
     return (
       <AccessDenied
         title="Access Requests restricted"
-        description="Only Super Admin and Access Admin can request, approve, or reject restricted access."
+        description="Your current app role cannot create or review access requests."
       />
     );
   }
 
   const [requests, restrictedFolders] = await Promise.all([
     prisma.accessRequest.findMany({
+      where: isAdmin
+        ? undefined
+        : {
+            requestedByEmail: session.email
+          },
       include: {
         user: true,
         restrictedFolder: true
@@ -42,12 +48,13 @@ export default async function AccessRequestsPage() {
       <section className="hero-card">
         <div className="eyebrow-row">
           <div className="eyebrow">Module 03</div>
-          <span className="pill danger">Exception workflow</span>
+          <span className="pill danger">{isAdmin ? "Exception workflow" : "Request portal"}</span>
         </div>
         <h2>Restricted access workflow</h2>
         <p>
-          The only place where special-case access can be requested. Every request must carry
-          justification, approver identity, dates, and a reviewable audit trail.
+          {isAdmin
+            ? "The only place where special-case access can be requested. Every request must carry justification, approver identity, dates, and a reviewable audit trail."
+            : "Request restricted-folder exceptions here. Requests are reviewed by an administrator before any access is granted."}
         </p>
       </section>
 
@@ -69,15 +76,25 @@ export default async function AccessRequestsPage() {
       <section className="panel">
         <div className="section-head">
           <div>
-            <h3>Create restricted access request</h3>
-            <p className="muted">Use this only for approved exception paths.</p>
+            <h3>{isAdmin ? "Create restricted access request" : "Request restricted folder exception"}</h3>
+            <p className="muted">
+              {isAdmin
+                ? "Use this only for approved exception paths."
+                : "Use this only when standard role-based access does not cover the work you need to perform."}
+            </p>
           </div>
-          <span className="pill">Create request</span>
+          <span className="pill">{isAdmin ? "Create request" : "Submit request"}</span>
         </div>
         <form action={createRestrictedAccessRequest} className="form-grid">
           <label className="field">
             <span>Target user email</span>
-            <input type="email" name="targetUserEmail" placeholder="user@company.com" required />
+            <input
+              type="email"
+              name="targetUserEmail"
+              placeholder="user@company.com"
+              defaultValue={session.email}
+              required
+            />
           </label>
           <label className="field">
             <span>Restricted folder</span>
@@ -110,7 +127,7 @@ export default async function AccessRequestsPage() {
             />
           </label>
           <div className="form-actions">
-            <button type="submit">Create request</button>
+            <button type="submit">{isAdmin ? "Create request" : "Submit request"}</button>
           </div>
         </form>
       </section>
@@ -118,10 +135,14 @@ export default async function AccessRequestsPage() {
       <section className="panel">
         <div className="section-head">
           <div>
-            <h3>Restricted folder requests</h3>
-            <p className="muted">Exception-only path, never the default operating model.</p>
+            <h3>{isAdmin ? "Restricted folder requests" : "My restricted folder requests"}</h3>
+            <p className="muted">
+              {isAdmin
+                ? "Exception-only path, never the default operating model."
+                : "These are the requests you have submitted for review."}
+            </p>
           </div>
-          <span className="pill warn">Reviewable evidence</span>
+          <span className="pill warn">{isAdmin ? "Reviewable evidence" : "Requester view"}</span>
         </div>
         <table className="table-tight">
           <thead>
@@ -159,7 +180,7 @@ export default async function AccessRequestsPage() {
                   )}
                 </td>
                 <td>
-                  {request.status === "REQUESTED" ? (
+                  {isAdmin && request.status === "REQUESTED" ? (
                     <div className="inline-actions">
                       <form action={approveRestrictedAccessRequest}>
                         <input type="hidden" name="requestId" value={request.id} />
@@ -174,8 +195,10 @@ export default async function AccessRequestsPage() {
                         </button>
                       </form>
                     </div>
-                  ) : (
+                  ) : isAdmin ? (
                     <span className="muted">Closed</span>
+                  ) : (
+                    <span className="muted">Awaiting admin review</span>
                   )}
                 </td>
               </tr>

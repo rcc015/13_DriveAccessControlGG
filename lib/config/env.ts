@@ -29,6 +29,7 @@ const optionalEmail = z.preprocess((value) => {
 }, z.string().email().optional());
 
 const appRoleNameValues = [
+  "REQUESTER",
   "SUPER_ADMIN",
   "ACCESS_ADMIN",
   "QMS_ACCESS_ADMIN",
@@ -60,6 +61,7 @@ const envSchema = z
     APP_BASE_URL: optionalUrl,
     SESSION_SECRET: optionalNonEmptyString,
     ALLOWED_ADMIN_EMAILS: z.string().optional(),
+    ALLOWED_REQUESTER_EMAILS: z.string().optional(),
     ADMIN_ROLE_OVERRIDES: z.string().optional()
   })
   .superRefine((value, ctx) => {
@@ -133,6 +135,17 @@ export function getAllowedAdminEmails(): string[] {
     .split(",")
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
+}
+
+export function getAllowedRequesterEmails(): string[] {
+  return (env.ALLOWED_REQUESTER_EMAILS ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function getAllowedAppEmails(): string[] {
+  return Array.from(new Set([...getAllowedAdminEmails(), ...getAllowedRequesterEmails()]));
 }
 
 export function getAdminRoleOverrides(): Record<string, AppRoleName> {

@@ -10,11 +10,15 @@ export const adminAssignmentRoles: AppRoleName[] = [
   "SUPPORT_ACCESS_ADMIN"
 ];
 
+export const requesterRoles: AppRoleName[] = ["REQUESTER"];
+
 export const adminAndReadRoles: AppRoleName[] = [
   ...adminAssignmentRoles,
   "REVIEWER",
   "READ_ONLY_AUDITOR"
 ];
+
+export const requestPortalRoles: AppRoleName[] = [...requesterRoles, ...adminAssignmentRoles];
 
 export function hasAnyRole(session: AppSession, allowedRoles: AppRoleName[]) {
   return allowedRoles.includes(session.appRole);

@@ -1,5 +1,6 @@
 import { requireSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +63,11 @@ function formatAuditPulse(entry: {
 }
 
 export default async function HomePage() {
-  await requireSession();
+  const session = await requireSession();
+
+  if (session.appRole === "REQUESTER") {
+    redirect("/access-requests");
+  }
 
   const now = new Date();
 

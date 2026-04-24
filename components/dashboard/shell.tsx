@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { adminAndReadRoles, adminAssignmentRoles } from "@/lib/auth/authorization";
+import { adminAndReadRoles, adminAssignmentRoles, requestPortalRoles } from "@/lib/auth/authorization";
 import type { AppRoleName } from "@/types/domain";
 
 const links = [
@@ -12,7 +12,7 @@ const links = [
   { href: "/users", label: "Users", roles: adminAssignmentRoles },
   { href: "/role-matrix", label: "Role Matrix", roles: adminAndReadRoles },
   { href: "/access-viewer", label: "Access Viewer", roles: adminAndReadRoles },
-  { href: "/access-requests", label: "Access Requests", roles: adminAssignmentRoles },
+  { href: "/access-requests", label: "Access Requests", roles: requestPortalRoles },
   { href: "/access-reviews", label: "Access Reviews", roles: ["SUPER_ADMIN", "REVIEWER", "READ_ONLY_AUDITOR"] },
   { href: "/reports", label: "Reports", roles: adminAndReadRoles },
   { href: "/templates", label: "Templates", roles: adminAssignmentRoles },
