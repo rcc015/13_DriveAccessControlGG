@@ -145,7 +145,9 @@ export function getAllowedRequesterEmails(): string[] {
 }
 
 export function getAllowedAppEmails(): string[] {
-  return Array.from(new Set([...getAllowedAdminEmails(), ...getAllowedRequesterEmails()]));
+  return Array.from(
+    new Set([...getAllowedAdminEmails(), ...getAllowedRequesterEmails(), ...Object.keys(getAdminRoleOverrides())])
+  );
 }
 
 export function getAdminRoleOverrides(): Record<string, AppRoleName> {

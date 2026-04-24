@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { env, getAllowedAdminEmails } from "@/lib/config/env";
+import { env, getAllowedAppEmails } from "@/lib/config/env";
 
 export function buildGoogleLoginUrl(state: string) {
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -70,7 +70,7 @@ export async function exchangeCodeForProfile(code: string) {
     throw new Error("Google profile email missing.");
   }
 
-  const allowedEmails = getAllowedAdminEmails();
+  const allowedEmails = getAllowedAppEmails();
   const normalizedEmail = profile.email.toLowerCase();
 
   if (allowedEmails.length > 0 && !allowedEmails.includes(normalizedEmail)) {
