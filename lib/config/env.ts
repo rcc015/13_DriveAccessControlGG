@@ -53,6 +53,8 @@ const envSchema = z
     GOOGLE_CLIENT_SECRET: optionalNonEmptyString,
     GOOGLE_REDIRECT_URI: optionalUrl,
     GOOGLE_HOSTED_DOMAIN: optionalNonEmptyString,
+    GOOGLE_ACTIVE_EMPLOYEES_GROUP_EMAIL: optionalEmail,
+    GOOGLE_DIRECTORY_CUSTOMER_ID: optionalNonEmptyString,
     GOOGLE_IMPERSONATED_ADMIN: optionalEmail,
     GOOGLE_SERVICE_ACCOUNT_JSON: optionalNonEmptyString,
     GOOGLE_REPORTS_FOLDER_ID: optionalNonEmptyString,
@@ -88,6 +90,20 @@ const envSchema = z
           path: ["GOOGLE_REDIRECT_URI"],
           message: "GOOGLE_REDIRECT_URI is required when AUTH_MODE=google."
         });
+      }
+
+      if (value.APP_BASE_URL && value.GOOGLE_REDIRECT_URI) {
+        const appOrigin = new URL(value.APP_BASE_URL).origin;
+        const redirectOrigin = new URL(value.GOOGLE_REDIRECT_URI).origin;
+
+        if (appOrigin !== redirectOrigin) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["GOOGLE_REDIRECT_URI"],
+            message:
+              `GOOGLE_REDIRECT_URI origin (${redirectOrigin}) must match APP_BASE_URL origin (${appOrigin}) to avoid OAuth state/session loops.`
+          });
+        }
       }
     }
 

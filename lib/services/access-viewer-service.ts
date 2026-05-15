@@ -3,14 +3,28 @@ import type { EffectiveAccessSummary } from "@/types/domain";
 
 export class AccessViewerService {
   async getUserAccess(email: string): Promise<{
+    userFound: boolean;
     appRoles: string[];
     accessRoles: string[];
     groups: string[];
     inheritedSharedDrives: EffectiveAccessSummary[];
     restrictedFolderExceptions: string[];
   }> {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      return {
+        userFound: false,
+        appRoles: [],
+        accessRoles: [],
+        groups: [],
+        inheritedSharedDrives: [],
+        restrictedFolderExceptions: []
+      };
+    }
+
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
       include: {
         roleAssignments: {
           include: {
@@ -51,6 +65,7 @@ export class AccessViewerService {
 
     if (!user) {
       return {
+        userFound: false,
         appRoles: [],
         accessRoles: [],
         groups: [],
@@ -88,6 +103,7 @@ export class AccessViewerService {
       .filter((value): value is string => Boolean(value));
 
     return {
+      userFound: true,
       appRoles: Array.from(new Set(user.roleAssignments.map((assignment) => assignment.role.name))),
       accessRoles: Array.from(new Set(user.accessRoleAssignments.map((assignment) => assignment.accessRole.displayName))),
       groups: Array.from(

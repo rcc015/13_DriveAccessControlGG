@@ -3,7 +3,14 @@ import type { GeneratedFileRef } from "@/types/domain";
 export interface DirectoryUser {
   id: string;
   primaryEmail: string;
+  suspended?: boolean | null;
+  orgUnitPath?: string | null;
+  department?: string | null;
+  title?: string | null;
+  aliases?: string[];
   name?: {
+    givenName?: string | null;
+    familyName?: string | null;
     fullName?: string | null;
   };
 }
@@ -17,6 +24,7 @@ export interface DirectoryMember {
 export interface DirectoryProvider {
   searchUsers(query: string): Promise<DirectoryUser[]>;
   listActiveUsers(): Promise<DirectoryUser[]>;
+  getUserByEmail(email: string): Promise<DirectoryUser | null>;
   listGroupMembers(groupKey: string): Promise<DirectoryMember[]>;
   addGroupMember(groupKey: string, email: string): Promise<void>;
   removeGroupMember(groupKey: string, memberKey: string): Promise<void>;

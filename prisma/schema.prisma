@@ -46,17 +46,68 @@ enum AccessRoleRestrictedMode {
   POLICY_REVIEW
 }
 
+enum DirectoryUserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum DirectoryUserSourceType {
+  GOOGLE_GROUP
+  GOOGLE_DIRECTORY
+  MANUAL
+}
+
+enum DirectorySyncStatus {
+  NEVER
+  SUCCESS
+  FAILED
+}
+
+enum DirectorySyncSourceType {
+  GOOGLE_GROUP
+  GOOGLE_DIRECTORY
+  LOCAL_MANUAL
+}
+
 model User {
   id                    String                 @id @default(cuid())
   email                 String                 @unique
+  googleUserId          String?                @unique
   displayName           String
+  givenName             String?
+  familyName            String?
   isActive              Boolean                @default(true)
+  directoryStatus       DirectoryUserStatus    @default(ACTIVE)
+  directorySource       DirectoryUserSourceType @default(MANUAL)
+  orgUnitPath           String?
+  department            String?
+  title                 String?
+  aliases               String[]               @default([])
+  lastSyncedAt          DateTime?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   roleAssignments       UserRole[]
   accessRoleAssignments UserAccessRole[]
   memberships           GroupMembership[]
   accessRequests        AccessRequest[]
+}
+
+model DirectorySyncState {
+  id                       String                  @id
+  sourceType               DirectorySyncSourceType @default(LOCAL_MANUAL)
+  sourceName               String?
+  lastAttemptedSyncAt      DateTime?
+  lastSuccessfulSyncAt     DateTime?
+  lastSyncStatus           DirectorySyncStatus     @default(NEVER)
+  lastSyncError            String?
+  lastFetchedCount         Int                     @default(0)
+  lastCreatedCount         Int                     @default(0)
+  lastUpdatedCount         Int                     @default(0)
+  lastMarkedInactiveCount  Int                     @default(0)
+  lastMarkedSuspendedCount Int                     @default(0)
+  lastSkippedCount         Int                     @default(0)
+  updatedAt                DateTime                @updatedAt
 }
 
 model Role {

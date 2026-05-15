@@ -84,6 +84,16 @@ function shouldUseSecureCookies() {
   return (env.APP_BASE_URL ?? "").startsWith("https://");
 }
 
+function buildCookieOptions(maxAge: number) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: shouldUseSecureCookies(),
+    path: "/",
+    maxAge
+  };
+}
+
 export async function getSession(): Promise<AppSession | null> {
   const allowedAdminEmails = getAllowedAdminEmails();
 
@@ -142,18 +152,8 @@ export async function requireSession(): Promise<AppSession> {
 
 export async function createSessionCookie(session: AppSession) {
   const cookieStore = await cookies();
-  const payload: SignedSessionPayload = {
-    ...session,
-    exp: Date.now() + 1000 * 60 * 60 * 8
-  };
-
-  cookieStore.set(SESSION_COOKIE_NAME, serializeSignedValue(JSON.stringify(payload)), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: shouldUseSecureCookies(),
-    path: "/",
-    maxAge: 60 * 60 * 8
-  });
+  const cookie = buildSessionCookie(session);
+  cookieStore.set(cookie.name, cookie.value, cookie.options);
 }
 
 export async function clearSessionCookie() {
@@ -163,13 +163,8 @@ export async function clearSessionCookie() {
 
 export async function setOAuthStateCookie(state: string) {
   const cookieStore = await cookies();
-  cookieStore.set(STATE_COOKIE_NAME, serializeSignedValue(state), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: shouldUseSecureCookies(),
-    path: "/",
-    maxAge: 60 * 10
-  });
+  const cookie = buildOAuthStateCookie(state);
+  cookieStore.set(cookie.name, cookie.value, cookie.options);
 }
 
 export async function consumeOAuthStateCookie() {
@@ -190,4 +185,25 @@ export function createSessionFromGoogleProfile(profile: { email: string; name?: 
     displayName: profile.name?.trim() || profile.email.split("@")[0],
     appRole: getRoleForEmail(profile.email)
   } satisfies AppSession;
+}
+
+export function buildSessionCookie(session: AppSession) {
+  const payload: SignedSessionPayload = {
+    ...session,
+    exp: Date.now() + 1000 * 60 * 60 * 8
+  };
+
+  return {
+    name: SESSION_COOKIE_NAME,
+    value: serializeSignedValue(JSON.stringify(payload)),
+    options: buildCookieOptions(60 * 60 * 8)
+  };
+}
+
+export function buildOAuthStateCookie(state: string) {
+  return {
+    name: STATE_COOKIE_NAME,
+    value: serializeSignedValue(state),
+    options: buildCookieOptions(60 * 10)
+  };
 }

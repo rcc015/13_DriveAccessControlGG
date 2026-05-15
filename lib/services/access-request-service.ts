@@ -12,6 +12,7 @@ export class AccessRequestService {
   async createRequest(input: {
     requesterEmail: string;
     targetUserEmail: string;
+    targetUserDisplayName?: string;
     restrictedFolderId: string;
     justification: string;
     startDate?: Date;
@@ -19,10 +20,13 @@ export class AccessRequestService {
   }) {
     const user = await prisma.user.upsert({
       where: { email: input.targetUserEmail },
-      update: {},
+      update: {
+        displayName: input.targetUserDisplayName || input.targetUserEmail.split("@")[0],
+        isActive: true
+      },
       create: {
         email: input.targetUserEmail,
-        displayName: input.targetUserEmail.split("@")[0]
+        displayName: input.targetUserDisplayName || input.targetUserEmail.split("@")[0]
       }
     });
 

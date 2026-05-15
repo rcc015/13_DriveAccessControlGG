@@ -7,6 +7,7 @@ import { requireSession } from "@/lib/auth/session";
 import { getDirectoryProvider } from "@/lib/google/provider-factory";
 import { GroupMembershipService } from "@/lib/services/group-membership-service";
 import { AuditLogService } from "@/lib/services/audit-log-service";
+import { resolveManagedUserSelection } from "@/lib/users/selection";
 
 export interface CleanupOrphanedMembershipState {
   ok: boolean;
@@ -22,11 +23,14 @@ export async function assignUserRole(formData: FormData) {
     throw new Error("Only administrative roles can assign app roles.");
   }
 
-  const userEmail = String(formData.get("userEmail") ?? "").trim().toLowerCase();
-  const displayName = String(formData.get("displayName") ?? "").trim();
   const roleId = String(formData.get("roleId") ?? "").trim();
+  const selection = await resolveManagedUserSelection(formData, {
+    emailField: "userEmail",
+    displayNameField: "displayName",
+    selectionIdField: "selectedUserId"
+  });
 
-  if (!userEmail || !roleId) {
+  if (!roleId) {
     throw new Error("User email and role are required.");
   }
 
@@ -51,13 +55,14 @@ export async function assignUserRole(formData: FormData) {
   }
 
   const user = await prisma.user.upsert({
-    where: { email: userEmail },
+    where: { email: selection.email },
     update: {
-      displayName: displayName || userEmail.split("@")[0]
+      displayName: selection.displayName,
+      isActive: true
     },
     create: {
-      email: userEmail,
-      displayName: displayName || userEmail.split("@")[0]
+      email: selection.email,
+      displayName: selection.displayName
     }
   });
 
@@ -83,7 +88,7 @@ export async function assignUserRole(formData: FormData) {
   for (const mapping of role.mappings) {
     await membershipService.addUserToGroup({
       actorEmail: session.email,
-      userEmail,
+      userEmail: selection.email,
       groupEmail: mapping.groupEmail,
       sharedDriveName: mapping.sharedDrive.name,
       restrictedFolderPath: mapping.restrictedFolder?.path,
@@ -191,11 +196,14 @@ export async function assignUserAccessRole(formData: FormData) {
     throw new Error("Only administrative roles can assign business access roles.");
   }
 
-  const userEmail = String(formData.get("userEmail") ?? "").trim().toLowerCase();
-  const displayName = String(formData.get("displayName") ?? "").trim();
   const accessRoleId = String(formData.get("accessRoleId") ?? "").trim();
+  const selection = await resolveManagedUserSelection(formData, {
+    emailField: "userEmail",
+    displayNameField: "displayName",
+    selectionIdField: "selectedUserId"
+  });
 
-  if (!userEmail || !accessRoleId) {
+  if (!accessRoleId) {
     throw new Error("User email and access role are required.");
   }
 
@@ -216,13 +224,14 @@ export async function assignUserAccessRole(formData: FormData) {
   }
 
   const user = await prisma.user.upsert({
-    where: { email: userEmail },
+    where: { email: selection.email },
     update: {
-      displayName: displayName || userEmail.split("@")[0]
+      displayName: selection.displayName,
+      isActive: true
     },
     create: {
-      email: userEmail,
-      displayName: displayName || userEmail.split("@")[0]
+      email: selection.email,
+      displayName: selection.displayName
     }
   });
 
@@ -248,7 +257,7 @@ export async function assignUserAccessRole(formData: FormData) {
   for (const mapping of accessRole.mappings) {
     await membershipService.addUserToAccessRoleGroup({
       actorEmail: session.email,
-      userEmail,
+      userEmail: selection.email,
       groupEmail: mapping.groupEmail,
       sharedDriveName: mapping.sharedDrive.name,
       restrictedFolderPath: mapping.restrictedFolder?.path,

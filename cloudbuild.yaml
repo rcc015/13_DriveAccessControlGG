@@ -36,4 +36,4 @@ substitutions:
   _IMAGE: us-central1-docker.pkg.dev/hidden-outrider-390502/drive-access-console/app:latest
   _RUNTIME_SERVICE_ACCOUNT: drive-access-console-runtime@hidden-outrider-390502.iam.gserviceaccount.com
   _CLOUDSQL_INSTANCE: hidden-outrider-390502:us-central1:drive-access-console-staging
-  _APP_BASE_URL: https://drive-access-console-staging-j6hkbom3aa-uc.a.run.app
+  _APP_BASE_URL: https://rbac.conceivable.life

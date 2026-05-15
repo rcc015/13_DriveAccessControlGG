@@ -410,6 +410,7 @@ th {
 
 .search-bar {
   display: flex;
+  align-items: flex-end;
   gap: 12px;
   margin: 0 0 18px;
 }
@@ -508,6 +509,125 @@ th {
 
 .field-full {
   grid-column: 1 / -1;
+}
+
+.autocomplete-field {
+  position: relative;
+}
+
+.autocomplete-label span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-gray);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.autocomplete-description {
+  display: block;
+  margin: -2px 0 8px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.autocomplete-shell {
+  position: relative;
+}
+
+.autocomplete-popover {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  border: 1px solid var(--border-input);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  min-height: 52px;
+}
+
+.autocomplete-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.autocomplete-option {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.autocomplete-option + .autocomplete-option {
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.autocomplete-option.active,
+.autocomplete-option:hover {
+  background: rgba(226, 232, 240, 0.55);
+}
+
+.autocomplete-primary {
+  display: block;
+  min-width: 0;
+  color: var(--text);
+  font-weight: 600;
+  margin-bottom: 0;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.autocomplete-secondary {
+  display: block;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-bottom: 0;
+  letter-spacing: normal;
+  text-transform: none;
+  font-variant-ligatures: none;
+}
+
+.autocomplete-state {
+  padding: 12px 14px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+}
+
+.autocomplete-state.error,
+.field-warning {
+  color: #b45309;
+}
+
+.field-warning {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.82rem;
+}
+
+.search-autocomplete {
+  flex: 1;
+  margin: 0;
 }
 
 .form-actions {

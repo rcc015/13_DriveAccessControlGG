@@ -73,6 +73,7 @@ DATABASE_URL=postgresql://USER:PASSWORD@localhost/drive_access_console?host=/clo
 5. Update substitutions in [cloudbuild.yaml](/Users/rodrigocastro/00_casdev/00_git/13_DriveAccessControlGG/13_DriveAccessControlGG/cloudbuild.yaml):
    - `_CLOUDSQL_INSTANCE`
    - `_APP_BASE_URL`
+   - if using a custom domain such as `https://rbac.conceivable.life`, also update the `GOOGLE_REDIRECT_URI` secret to `https://rbac.conceivable.life/auth/callback`
 6. Build and deploy:
 
 ```bash

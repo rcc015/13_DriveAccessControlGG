@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { adminAssignmentRoles, hasAnyRole, requestPortalRoles } from "@/lib/auth/authorization";
 import { requireSession } from "@/lib/auth/session";
 import { AccessRequestService } from "@/lib/services/access-request-service";
+import { resolveManagedUserSelection } from "@/lib/users/selection";
 
 function parseOptionalDate(value: FormDataEntryValue | null) {
   if (typeof value !== "string" || value.trim() === "") {
@@ -21,18 +22,22 @@ export async function createRestrictedAccessRequest(formData: FormData) {
   }
 
   const service = new AccessRequestService();
-
-  const targetUserEmail = String(formData.get("targetUserEmail") ?? "").trim().toLowerCase();
   const restrictedFolderId = String(formData.get("restrictedFolderId") ?? "").trim();
   const justification = String(formData.get("justification") ?? "").trim();
+  const selection = await resolveManagedUserSelection(formData, {
+    emailField: "targetUserEmail",
+    displayNameField: "targetUserDisplayName",
+    selectionIdField: "selectedUserId"
+  });
 
-  if (!targetUserEmail || !restrictedFolderId || !justification) {
+  if (!restrictedFolderId || !justification) {
     throw new Error("Target user, restricted folder, and justification are required.");
   }
 
   await service.createRequest({
     requesterEmail: session.email,
-    targetUserEmail,
+    targetUserEmail: selection.email,
+    targetUserDisplayName: selection.displayName,
     restrictedFolderId,
     justification,
     startDate: parseOptionalDate(formData.get("startDate")),

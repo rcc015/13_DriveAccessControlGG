@@ -1,5 +1,7 @@
 import { AccessDenied } from "@/components/dashboard/access-denied";
 import { OrphanedMembershipCleanupForm } from "@/components/dashboard/orphaned-membership-cleanup-form";
+import { UserAutocomplete } from "@/components/dashboard/user-autocomplete";
+import { applyActiveEmployeeSync } from "@/app/(dashboard)/google-integration/actions";
 import {
   assignUserAccessRole,
   assignUserRole,
@@ -10,7 +12,8 @@ import { adminAssignmentRoles, hasAnyRole } from "@/lib/auth/authorization";
 import { requireSession } from "@/lib/auth/session";
 import { env } from "@/lib/config/env";
 import { prisma } from "@/lib/db/prisma";
-import { getDirectoryProvider } from "@/lib/google/provider-factory";
+import { getManagedDirectoryStatus } from "@/lib/users/directory-status";
+import { searchManagedUsersWithStatus } from "@/lib/users/search";
 import type { AppRoleName } from "@/types/domain";
 
 interface UsersPageProps {
@@ -33,9 +36,39 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
 
   const params = (await searchParams) ?? {};
   const query = params.q?.trim() ?? "";
-  const directory = getDirectoryProvider();
+  const [directoryStatus, managedUserSearch] = await Promise.all([
+    getManagedDirectoryStatus(),
+    query
+      ? searchManagedUsersWithStatus(query, {
+          limit: 20
+        }).catch((error) => ({
+          results: [],
+          meta: {
+            source: "local" as const,
+            usedLiveDirectoryFallback: false as const,
+            emptyState: "sync_error" as const,
+            managedUsersCount: 0,
+            activeUsersCount: 0,
+            inactiveUsersCount: 0,
+            suspendedUsersCount: 0,
+            lastAttemptedSyncAt: null,
+            lastSuccessfulSyncAt: null,
+            lastSyncStatus: "failed" as const,
+            lastSyncError: error instanceof Error ? error.message : "Unable to search directory users.",
+            lastFetchedCount: 0,
+            lastCreatedCount: 0,
+            lastUpdatedCount: 0,
+            lastMarkedInactiveCount: 0,
+            lastMarkedSuspendedCount: 0,
+            lastSkippedCount: 0,
+            sourceType: "local_manual" as const,
+            sourceName: null
+          }
+        }))
+      : Promise.resolve(null)
+  ]);
 
-  const [roles, accessRoles, groupMappings, users, assignments, accessAssignments, activeMemberships] = await Promise.all([
+  const [roles, accessRoles, groupMappings, assignments, accessAssignments, activeMemberships] = await Promise.all([
     prisma.role.findMany({
       include: {
         mappings: {
@@ -72,7 +105,6 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
       },
       orderBy: [{ sharedDrive: { name: "asc" } }, { groupEmail: "asc" }]
     }),
-    directory.searchUsers(query || "company"),
     prisma.userRole.findMany({
       include: {
         user: true,
@@ -210,7 +242,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
       <section className="stat-strip">
         <article className="panel stat-card">
           <span>Directory results</span>
-          <strong>{users.length}</strong>
+          <strong>{managedUserSearch?.results.length ?? 0}</strong>
         </article>
         <article className="panel stat-card">
           <span>App roles</span>
@@ -220,6 +252,76 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
           <span>Access roles</span>
           <strong>{accessRoles.length}</strong>
         </article>
+        <article className="panel stat-card">
+          <span>Managed users</span>
+          <strong>{directoryStatus.managedUsersCount}</strong>
+        </article>
+      </section>
+
+      <section className="panel">
+        <div className="section-head">
+          <div>
+            <h3>Directory sync status</h3>
+            <p className="muted">
+              User autocomplete and directory search use only the local synced employee directory. No Google API calls are made from the frontend.
+            </p>
+          </div>
+          <span className={`pill ${directoryStatus.lastSyncStatus === "failed" ? "warn" : ""}`}>
+            {directoryStatus.lastSyncStatus === "never"
+              ? "Never synced"
+              : directoryStatus.lastSyncStatus === "failed"
+                ? "Last sync failed"
+                : "Synced"}
+          </span>
+        </div>
+        <div className="stat-strip">
+          <article className="panel stat-card">
+            <span>Managed users</span>
+            <strong>{directoryStatus.managedUsersCount}</strong>
+          </article>
+          <article className="panel stat-card">
+            <span>Active users</span>
+            <strong>{directoryStatus.activeUsersCount}</strong>
+          </article>
+          <article className="panel stat-card">
+            <span>Inactive / suspended</span>
+            <strong>{directoryStatus.inactiveUsersCount + directoryStatus.suspendedUsersCount}</strong>
+          </article>
+          <article className="panel stat-card">
+            <span>Last success</span>
+            <strong>{directoryStatus.lastSuccessfulSyncAt ? directoryStatus.lastSuccessfulSyncAt.slice(0, 10) : "Never"}</strong>
+          </article>
+        </div>
+        <div className="stack-xs">
+          <p className="card-note">
+            Source:{" "}
+            {directoryStatus.sourceType === "google_group"
+              ? `Google Group: ${directoryStatus.sourceName ?? "Not configured"}`
+              : directoryStatus.sourceType === "google_directory"
+                ? `Google Directory: ${directoryStatus.sourceName ?? "my_customer"}`
+                : "Local/manual only"}
+          </p>
+          <p className="card-note">
+            Last attempt: {directoryStatus.lastAttemptedSyncAt ? directoryStatus.lastAttemptedSyncAt.slice(0, 19).replace("T", " ") : "Never"}
+          </p>
+          <p className="card-note">
+            Last result: fetched {directoryStatus.lastFetchedCount}, created {directoryStatus.lastCreatedCount}, updated {directoryStatus.lastUpdatedCount}, marked inactive {directoryStatus.lastMarkedInactiveCount}, marked suspended {directoryStatus.lastMarkedSuspendedCount}, skipped {directoryStatus.lastSkippedCount}.
+          </p>
+          <p className="card-note">
+            {directoryStatus.lastSyncError
+              ? `Last sync error: ${directoryStatus.lastSyncError}`
+              : directoryStatus.activeUsersCount === 0
+                ? "No active employees are synced yet. Run Directory Sync."
+                : directoryStatus.activeUsersCount <= 6
+                  ? `Only ${directoryStatus.activeUsersCount} users are currently synced from the active employee source.`
+                  : "Managed directory data is available for assignment and autocomplete workflows."}
+          </p>
+        </div>
+        {session.appRole === "SUPER_ADMIN" ? (
+          <form action={applyActiveEmployeeSync} className="form-actions">
+            <button type="submit">Run Directory Sync</button>
+          </form>
+        ) : null}
       </section>
 
       <section className="panel">
@@ -233,25 +335,14 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
           <span className="pill warn">Write action</span>
         </div>
         <form action={assignUserRole} className="form-grid">
-          <label className="field">
-            <span>User email</span>
-            <input
-              type="email"
-              name="userEmail"
-              defaultValue={typeof users[0]?.primaryEmail === "string" ? users[0].primaryEmail : ""}
-              placeholder="user@company.com"
-              required
-            />
-          </label>
-          <label className="field">
-            <span>Display name</span>
-            <input
-              type="text"
-              name="displayName"
-              defaultValue={typeof users[0]?.name?.fullName === "string" ? users[0].name.fullName : ""}
-              placeholder="Full name"
-            />
-          </label>
+          <UserAutocomplete
+            label="User"
+            name="userEmail"
+            displayNameName="displayName"
+            selectionIdName="selectedUserId"
+            placeholder="Search by name or email"
+            required
+          />
           <label className="field field-full">
             <span>App role</span>
             <select name="roleId" required defaultValue="">
@@ -286,25 +377,14 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
           <span className="pill">Business role</span>
         </div>
         <form action={assignUserAccessRole} className="form-grid">
-          <label className="field">
-            <span>User email</span>
-            <input
-              type="email"
-              name="userEmail"
-              defaultValue={typeof users[0]?.primaryEmail === "string" ? users[0].primaryEmail : ""}
-              placeholder="user@company.com"
-              required
-            />
-          </label>
-          <label className="field">
-            <span>Display name</span>
-            <input
-              type="text"
-              name="displayName"
-              defaultValue={typeof users[0]?.name?.fullName === "string" ? users[0].name.fullName : ""}
-              placeholder="Full name"
-            />
-          </label>
+          <UserAutocomplete
+            label="User"
+            name="userEmail"
+            displayNameName="displayName"
+            selectionIdName="selectedUserId"
+            placeholder="Search by name or email"
+            required
+          />
           <label className="field field-full">
             <span>Access role</span>
             <select name="accessRoleId" required defaultValue="">
@@ -332,9 +412,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
           <div>
             <h3>Search directory users</h3>
             <p className="muted">
-              {env.GOOGLE_INTEGRATION_MODE === "google"
-                ? "Live Directory API search is active for Google Workspace users."
-                : "Mock Directory search is active until live Google integration is enabled."}
+              This uses the same synced local directory source as autocomplete.
             </p>
           </div>
           <span className="pill">User -&gt; Role -&gt; Group</span>
@@ -353,12 +431,26 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
           <article className="panel inset-panel">
             <h3>Directory results</h3>
             <ul className="clean">
-              {users.map((user) => (
-                <li key={user.id}>
-                  <strong>{user.name?.fullName || user.primaryEmail}</strong>
-                  <div className="muted">{user.primaryEmail}</div>
-                </li>
-              ))}
+              {query ? (
+                managedUserSearch && managedUserSearch.results.length > 0 ? (
+                  managedUserSearch.results.map((user) => (
+                    <li key={user.id}>
+                      <strong>{user.displayName}</strong>
+                      <div className="muted">{user.email}</div>
+                    </li>
+                  ))
+                ) : (
+                  <li className="muted">
+                    {managedUserSearch?.meta.lastSyncError
+                      ? "Unable to search users because directory sync is not configured or failed."
+                      : managedUserSearch?.meta.emptyState === "sync_empty"
+                        ? "No active employees are synced yet. Run Directory Sync."
+                        : "No matching active users found."}
+                  </li>
+                )
+              ) : (
+                <li className="muted">Enter a name or email to search synced active users.</li>
+              )}
             </ul>
           </article>
           <article className="panel inset-panel">

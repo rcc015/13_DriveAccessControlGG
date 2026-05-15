@@ -1,4 +1,5 @@
 import { AccessDenied } from "@/components/dashboard/access-denied";
+import { UserAutocomplete } from "@/components/dashboard/user-autocomplete";
 import { adminAndReadRoles, hasAnyRole } from "@/lib/auth/authorization";
 import { requireSession } from "@/lib/auth/session";
 import { AccessViewerService } from "@/lib/services/access-viewer-service";
@@ -17,9 +18,19 @@ export default async function AccessViewerPage({ searchParams }: AccessViewerPag
   }
 
   const params = (await searchParams) ?? {};
-  const email = params.email?.trim() || "";
+  const email = params.email?.trim().toLowerCase() || "";
   const accessViewer = new AccessViewerService();
-  const access = await accessViewer.getUserAccess(email);
+  const hasSearch = email.length > 0;
+  const access = hasSearch
+    ? await accessViewer.getUserAccess(email)
+    : {
+        userFound: false,
+        appRoles: [],
+        accessRoles: [],
+        groups: [],
+        inheritedSharedDrives: [],
+        restrictedFolderExceptions: []
+      };
 
   return (
     <div className="stack">
@@ -44,7 +55,13 @@ export default async function AccessViewerPage({ searchParams }: AccessViewerPag
           <span className="pill">Effective access</span>
         </div>
         <form className="search-bar" action="/access-viewer">
-          <input type="email" name="email" defaultValue={email} placeholder="user@company.com" />
+          <UserAutocomplete
+            label="User"
+            name="email"
+            defaultEmail={email}
+            placeholder="Search by name or email"
+            className="field search-autocomplete"
+          />
           <button type="submit">View access</button>
         </form>
       </section>
@@ -58,10 +75,12 @@ export default async function AccessViewerPage({ searchParams }: AccessViewerPag
             </div>
           </div>
           <ul className="clean">
-            {access.appRoles.length > 0 ? (
+            {!hasSearch ? (
+              <li className="muted">Enter an email to inspect app roles.</li>
+            ) : access.appRoles.length > 0 ? (
               access.appRoles.map((role) => <li key={role}>{role.replaceAll("_", " ")}</li>)
             ) : (
-              <li className="muted">No app roles assigned.</li>
+              <li className="muted">{access.userFound ? "No app roles assigned." : "User not found."}</li>
             )}
           </ul>
         </article>
@@ -74,10 +93,14 @@ export default async function AccessViewerPage({ searchParams }: AccessViewerPag
             </div>
           </div>
           <ul className="clean">
-            {access.accessRoles.length > 0 ? (
+            {!hasSearch ? (
+              <li className="muted">Enter an email to inspect business access roles.</li>
+            ) : access.accessRoles.length > 0 ? (
               access.accessRoles.map((role) => <li key={role}>{role}</li>)
             ) : (
-              <li className="muted">No business access roles assigned.</li>
+              <li className="muted">
+                {access.userFound ? "No business access roles assigned." : "User not found."}
+              </li>
             )}
           </ul>
         </article>
@@ -92,10 +115,14 @@ export default async function AccessViewerPage({ searchParams }: AccessViewerPag
             </div>
           </div>
           <ul className="clean">
-            {access.groups.length > 0 ? (
+            {!hasSearch ? (
+              <li className="muted">Enter an email to inspect mapped memberships.</li>
+            ) : access.groups.length > 0 ? (
               access.groups.map((group) => <li key={group}>{group}</li>)
             ) : (
-              <li className="muted">No mapped group memberships found.</li>
+              <li className="muted">
+                {access.userFound ? "No mapped group memberships found." : "User not found."}
+              </li>
             )}
           </ul>
         </article>
@@ -108,10 +135,16 @@ export default async function AccessViewerPage({ searchParams }: AccessViewerPag
             </div>
           </div>
           <ul className="clean">
-            {access.restrictedFolderExceptions.length > 0 ? (
+            {!hasSearch ? (
+              <li className="muted">Enter an email to inspect restricted-folder grants.</li>
+            ) : access.restrictedFolderExceptions.length > 0 ? (
               access.restrictedFolderExceptions.map((path) => <li key={path}>{path}</li>)
             ) : (
-              <li className="muted">No restricted-folder grants recorded for this user.</li>
+              <li className="muted">
+                {access.userFound
+                  ? "No restricted-folder grants recorded for this user."
+                  : "User not found."}
+              </li>
             )}
           </ul>
         </article>
@@ -134,7 +167,13 @@ export default async function AccessViewerPage({ searchParams }: AccessViewerPag
             </tr>
           </thead>
           <tbody>
-            {access.inheritedSharedDrives.length > 0 ? (
+            {!hasSearch ? (
+              <tr>
+                <td colSpan={3} className="muted">
+                  Enter an email to inspect inherited Shared Drive access.
+                </td>
+              </tr>
+            ) : access.inheritedSharedDrives.length > 0 ? (
               access.inheritedSharedDrives.map((summary) => (
                 <tr key={summary.sharedDriveName}>
                   <td>{summary.sharedDriveName}</td>
@@ -149,7 +188,9 @@ export default async function AccessViewerPage({ searchParams }: AccessViewerPag
             ) : (
               <tr>
                 <td colSpan={3} className="muted">
-                  No inherited Shared Drive access found for this user.
+                  {access.userFound
+                    ? "No inherited Shared Drive access found for this user."
+                    : "User not found."}
                 </td>
               </tr>
             )}

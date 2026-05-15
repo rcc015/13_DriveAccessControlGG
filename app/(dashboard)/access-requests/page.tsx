@@ -1,4 +1,5 @@
 import { AccessDenied } from "@/components/dashboard/access-denied";
+import { UserAutocomplete } from "@/components/dashboard/user-autocomplete";
 import {
   approveRestrictedAccessRequest,
   createRestrictedAccessRequest,
@@ -86,16 +87,16 @@ export default async function AccessRequestsPage() {
           <span className="pill">{isAdmin ? "Create request" : "Submit request"}</span>
         </div>
         <form action={createRestrictedAccessRequest} className="form-grid">
-          <label className="field">
-            <span>Target user email</span>
-            <input
-              type="email"
-              name="targetUserEmail"
-              placeholder="user@company.com"
-              defaultValue={session.email}
-              required
-            />
-          </label>
+          <UserAutocomplete
+            label="Target user"
+            name="targetUserEmail"
+            displayNameName="targetUserDisplayName"
+            selectionIdName="selectedUserId"
+            placeholder="Search by name or email"
+            defaultEmail={session.email}
+            defaultDisplayName={session.displayName}
+            required
+          />
           <label className="field">
             <span>Restricted folder</span>
             <select name="restrictedFolderId" required defaultValue="">

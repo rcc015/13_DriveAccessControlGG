@@ -57,6 +57,8 @@ export async function applyActiveEmployeeSync() {
 
   revalidatePath("/google-integration");
   revalidatePath("/reports");
+  revalidatePath("/users");
+  revalidatePath("/access-viewer");
 }
 
 export async function applyOffboardingHygiene() {

@@ -4,17 +4,17 @@ const MOCK_USERS: DirectoryUser[] = [
   {
     id: "usr_ana",
     primaryEmail: "ana@company.com",
-    name: { fullName: "Ana Quality" }
+    name: { givenName: "Ana", familyName: "Quality", fullName: "Ana Quality" }
   },
   {
     id: "usr_miguel",
     primaryEmail: "miguel@company.com",
-    name: { fullName: "Miguel Operations" }
+    name: { givenName: "Miguel", familyName: "Operations", fullName: "Miguel Operations" }
   },
   {
     id: "usr_lucia",
     primaryEmail: "lucia@company.com",
-    name: { fullName: "Lucia Auditor" }
+    name: { givenName: "Lucia", familyName: "Auditor", fullName: "Lucia Auditor" }
   }
 ];
 
@@ -34,6 +34,10 @@ export class MockDirectoryProvider implements DirectoryProvider {
 
   async listActiveUsers(): Promise<DirectoryUser[]> {
     return MOCK_USERS;
+  }
+
+  async getUserByEmail(email: string): Promise<DirectoryUser | null> {
+    return MOCK_USERS.find((user) => user.primaryEmail.toLowerCase() === email.trim().toLowerCase()) ?? null;
   }
 
   async listGroupMembers(groupKey: string): Promise<DirectoryMember[]> {

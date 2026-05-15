@@ -1,4 +1,8 @@
 import { PrismaClient } from "@prisma/client";
+import {
+  additionalBusinessAccessRoleMappings,
+  additionalBusinessAccessRoles
+} from "@/lib/access-roles/additional-business-roles";
 
 const prisma = new PrismaClient();
 
@@ -341,7 +345,8 @@ async function main() {
       department: "Support",
       restrictedAccessMode: "EXCEPTION_FIRST",
       description: "IT contributor role without default HR, Finance, or Legal access."
-    }
+    },
+    ...additionalBusinessAccessRoles
   ] as const;
 
   for (const accessRole of accessRoles) {
@@ -468,6 +473,15 @@ async function main() {
     COMMERCIAL_OPS: await prisma.accessRole.findUniqueOrThrow({ where: { code: "COMMERCIAL_OPS" } }),
     IT_SUPPORT: await prisma.accessRole.findUniqueOrThrow({ where: { code: "IT_SUPPORT" } })
   };
+
+  const additionalAccessRoleByCode = Object.fromEntries(
+    await Promise.all(
+      additionalBusinessAccessRoles.map(async (role) => [
+        role.code,
+        await prisma.accessRole.findUniqueOrThrow({ where: { code: role.code } })
+      ])
+    )
+  ) as Record<(typeof additionalBusinessAccessRoles)[number]["code"], { id: string }>;
 
   await prisma.groupMapping.deleteMany({
     where: {
@@ -643,7 +657,7 @@ async function main() {
     });
   }
 
-  const accessRoleMappings = [
+  const accessRoleMappings: ReadonlyArray<readonly [string, string, string | null, string, string]> = [
     [accessRoleByCode.DIRECTOR_OF_QUALITY.id, driveByName.qms.id, null, groupEmails.qualityOwner, "CONTENT_MANAGER"],
     [accessRoleByCode.DIRECTOR_OF_QUALITY.id, driveByName.qms.id, restrictedByPath.qmsGovernance.id, groupEmails.qualityOwner, "RESTRICTED"],
     [accessRoleByCode.QUALITY_MANAGER.id, driveByName.qms.id, null, groupEmails.qualityOwner, "CONTENT_MANAGER"],
@@ -691,8 +705,21 @@ async function main() {
     [accessRoleByCode.LEGAL_MANAGER.id, driveByName.support.id, restrictedByPath.legal.id, groupEmails.legal, "RESTRICTED"],
     [accessRoleByCode.FACILITIES_PUBLIC_RELATIONS.id, driveByName.support.id, null, groupEmails.supportOwner, "CONTRIBUTOR"],
     [accessRoleByCode.COMMERCIAL_OPS.id, driveByName.support.id, null, groupEmails.supportOwner, "CONTRIBUTOR"],
-    [accessRoleByCode.IT_SUPPORT.id, driveByName.support.id, null, groupEmails.it, "CONTRIBUTOR"]
-  ] as const;
+    [accessRoleByCode.IT_SUPPORT.id, driveByName.support.id, null, groupEmails.it, "CONTRIBUTOR"],
+    ...additionalBusinessAccessRoleMappings.map(
+      (mapping): readonly [string, string, string | null, string, string] => [
+        additionalAccessRoleByCode[mapping.code].id,
+        mapping.driveName === "02_Strategic_Working"
+          ? driveByName.strategic.id
+          : mapping.driveName === "03_Operational_Working"
+            ? driveByName.operational.id
+            : driveByName.support.id,
+        null,
+        mapping.groupEmail,
+        mapping.accessLevel
+      ]
+    )
+  ];
 
   for (const [accessRoleId, sharedDriveId, restrictedFolderId, groupEmail, accessLevel] of accessRoleMappings) {
     const existing = await prisma.accessRoleMapping.findFirst({
