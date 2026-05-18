@@ -43,8 +43,33 @@ const reportCatalog: Array<{
   }
 ];
 
-export default async function ReportsPage() {
+interface ReportsPageProps {
+  searchParams?: Promise<{
+    status?: string;
+    message?: string;
+    reportType?: string;
+    quarter?: string;
+    rows?: string;
+    itemsCreated?: string;
+    itemsReused?: string;
+    reviewCreated?: string;
+    driveUrl?: string;
+  }>;
+}
+
+function formatReportTypeLabel(reportType: string | undefined) {
+  if (!reportType) {
+    return "Report";
+  }
+
+  return reportType === "ACCESS_CHANGE_LOG"
+    ? "Access & Reconcile Change Log"
+    : reportType.replaceAll("_", " ");
+}
+
+export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const session = await requireSession();
+  const params = (await searchParams) ?? {};
 
   if (!hasAnyRole(session, adminAndReadRoles)) {
     return (
@@ -60,6 +85,12 @@ export default async function ReportsPage() {
     take: 20
   });
 
+  const feedbackMessage = params.message?.trim();
+  const feedbackStatus =
+    params.status === "error" || params.status === "warning" || params.status === "success"
+      ? params.status
+      : null;
+
   return (
     <div className="stack">
       <section className="hero-card">
@@ -73,6 +104,28 @@ export default async function ReportsPage() {
           registered with file ID and URL for evidence traceability.
         </p>
       </section>
+
+      {feedbackStatus && feedbackMessage ? (
+        <section className={`callout ${feedbackStatus}`}>
+          <strong>{formatReportTypeLabel(params.reportType)}</strong>
+          <div>{feedbackMessage}</div>
+          {params.quarter ? <div>Quarter: {params.quarter}</div> : null}
+          {params.rows ? <div>Rows generated: {params.rows}</div> : null}
+          {params.reportType === "QUARTERLY_ACCESS_REVIEW" ? (
+            <div>
+              Snapshot items: created {params.itemsCreated ?? "0"}, reused {params.itemsReused ?? "0"}
+              {params.reviewCreated === "true" ? " (new review created)" : " (existing review reused)"}
+            </div>
+          ) : null}
+          {params.driveUrl ? (
+            <div>
+              <a href={params.driveUrl} target="_blank" rel="noreferrer" className="inline-link">
+                Open Drive artifact
+              </a>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="stat-strip">
         <article className="panel stat-card">

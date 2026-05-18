@@ -1,4 +1,5 @@
 import type { ReportType } from "@/types/domain";
+import type { QuarterlyAccessReviewReportPayload } from "@/lib/reports/quarterly-access-review";
 
 export interface BuiltReport {
   fileName: string;
@@ -25,9 +26,11 @@ function escapeCsvCell(value: unknown) {
   return stringValue;
 }
 
-function toCsv(columns: string[], rows: Array<Record<string, unknown>>) {
+function toCsv<T extends object>(columns: string[], rows: T[]) {
   const header = columns.join(",");
-  const body = rows.map((row) => columns.map((column) => escapeCsvCell(row[column])).join(","));
+  const body = rows.map((row) =>
+    columns.map((column) => escapeCsvCell((row as Record<string, unknown>)[column])).join(",")
+  );
   return [header, ...body].join("\n");
 }
 
@@ -85,28 +88,7 @@ function buildMembershipSnapshot(payload: any[]) {
   );
 }
 
-function buildQuarterlyAccessReview(payload: any[]) {
-  const rows = payload.flatMap((review) =>
-    review.items.map((item: any) => ({
-      review_name: review.name,
-      quarter_label: review.quarterLabel,
-      review_status: review.status,
-      review_started_at: review.startedAt?.toISOString?.() ?? "",
-      review_due_at: review.dueAt?.toISOString?.() ?? "",
-      reviewer_email: review.reviewerEmail,
-      member_name: item.memberName ?? "",
-      member_email: item.memberEmail,
-      role_label: item.roleLabel ?? "",
-      group_email: item.groupEmail ?? "",
-      decision: item.decision ?? "",
-      decision_notes: item.decisionNotes ?? "",
-      access_justified: item.accessJustified ?? "",
-      action_required: item.actionRequired ?? "",
-      reviewed_at: item.reviewedAt?.toISOString?.() ?? "",
-      reviewed_by_email: item.reviewedByEmail ?? ""
-    }))
-  );
-
+function buildQuarterlyAccessReview(payload: QuarterlyAccessReviewReportPayload) {
   return toCsv(
     [
       "review_name",
@@ -126,7 +108,7 @@ function buildQuarterlyAccessReview(payload: any[]) {
       "reviewed_at",
       "reviewed_by_email"
     ],
-    rows
+    payload.rows
   );
 }
 
@@ -260,7 +242,7 @@ export function buildCsvReport(reportType: ReportType, payload: unknown): BuiltR
     reportType === "GROUP_MEMBERSHIP_SNAPSHOT"
       ? buildMembershipSnapshot(payload as any[])
       : reportType === "QUARTERLY_ACCESS_REVIEW"
-        ? buildQuarterlyAccessReview(payload as any[])
+        ? buildQuarterlyAccessReview(payload as QuarterlyAccessReviewReportPayload)
         : reportType === "RESTRICTED_ACCESS_EXCEPTIONS"
           ? buildRestrictedAccessExceptions(payload as any[])
           : reportType === "PERMISSION_MATRIX"
@@ -268,7 +250,13 @@ export function buildCsvReport(reportType: ReportType, payload: unknown): BuiltR
             : buildAccessChangeLog(payload as any[]);
 
   return {
-    fileName: `${normalizeReportLabel(reportType)}_${timestampToken()}.csv`,
+    fileName:
+      reportType === "QUARTERLY_ACCESS_REVIEW" &&
+      payload &&
+      typeof payload === "object" &&
+      "quarterLabel" in (payload as Record<string, unknown>)
+        ? `${normalizeReportLabel(reportType)}_${String((payload as { quarterLabel: string }).quarterLabel)}_${timestampToken()}.csv`
+        : `${normalizeReportLabel(reportType)}_${timestampToken()}.csv`,
     mimeType: "text/csv",
     content: Buffer.from(csv, "utf8")
   };

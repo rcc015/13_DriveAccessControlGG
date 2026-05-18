@@ -1,6 +1,7 @@
 import { requireSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { redirect } from "next/navigation";
+import { accessReviewStatusValues } from "@/lib/access-reviews/workflow";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ function humanizeActionType(actionType: string) {
   const explicit: Record<string, string> = {
     FOLDER_TEMPLATE_CREATED: "Folder template created",
     RECONCILE_APPLY: "Reconcile applied",
+    ACCESS_REVIEW_ITEM_REVIEWED: "Access review item reviewed",
     GROUP_MEMBERSHIP_ADD: "Group membership added",
     GROUP_MEMBERSHIP_REMOVE: "Group membership removed",
     ACCESS_ROLE_MEMBERSHIP_ADD: "Business access membership added",
@@ -85,9 +87,11 @@ export default async function HomePage() {
       }),
       prisma.accessReviewItem.count({
         where: {
-          decision: null,
+          OR: [{ decision: null }, { decision: "PENDING" }],
           accessReview: {
-            status: "OPEN"
+            status: {
+              in: accessReviewStatusValues.filter((value) => value !== "COMPLETED")
+            }
           }
         }
       }),

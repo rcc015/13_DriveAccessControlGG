@@ -23,6 +23,10 @@ export type ReportType =
   | "PERMISSION_MATRIX"
   | "ACCESS_CHANGE_LOG";
 
+export type AccessReviewDecision = "PENDING" | "APPROVED" | "REVOKE" | "NEEDS_UPDATE";
+
+export type AccessReviewStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED";
+
 export type FolderTemplateKind = "EXPLORATION" | "ENGINEERING";
 
 export interface EffectiveAccessSummary {

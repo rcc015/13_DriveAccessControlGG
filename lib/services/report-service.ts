@@ -2,19 +2,23 @@ import { prisma } from "@/lib/db/prisma";
 import { getDriveProvider } from "@/lib/google/provider-factory";
 import type { DriveProvider } from "@/lib/google/types";
 import { buildCsvReport } from "@/lib/reports/report-builder";
+import { normalizeQuarterFolderName } from "@/lib/reports/quarterly-access-review";
 import { AuditLogService } from "@/lib/services/audit-log-service";
+import { QuarterlyAccessReviewService } from "@/lib/services/quarterly-access-review-service";
 import type { ReportType } from "@/types/domain";
 
 export class ReportService {
   constructor(
     private drive: DriveProvider = getDriveProvider(),
-    private auditLog = new AuditLogService()
+    private auditLog = new AuditLogService(),
+    private quarterlyAccessReview = new QuarterlyAccessReviewService()
   ) {}
 
   async generateAndArchive(reportType: ReportType, actorEmail: string) {
-    const payload = await this.getPayload(reportType);
+    const result = await this.getPayload(reportType, actorEmail);
+    const payload = result.payload;
     const built = buildCsvReport(reportType, payload);
-    const quarterLabel = reportType === "QUARTERLY_ACCESS_REVIEW" ? getQuarterLabelFromPayload(payload) : null;
+    const quarterLabel = result.quarterLabel;
     const reportsFolderId = await this.resolveReportFolderId(reportType, quarterLabel);
     const uploaded = await this.drive.uploadReport(built.fileName, built.mimeType, built.content, reportsFolderId);
 
@@ -36,54 +40,105 @@ export class ReportService {
       metadata: {
         reportId: report.id,
         fileId: uploaded.fileId,
-        quarterLabel
+        quarterLabel,
+        rowCount: result.rowCount,
+        itemsCreated: result.itemsCreated,
+        itemsReused: result.itemsReused,
+        reviewCreated: result.reviewCreated,
+        warning: result.warning
       }
     });
 
-    return report;
+    return {
+      report,
+      quarterLabel,
+      rowCount: result.rowCount,
+      itemsCreated: result.itemsCreated,
+      itemsReused: result.itemsReused,
+      reviewCreated: result.reviewCreated,
+      warning: result.warning,
+      googleDriveUrl: uploaded.webViewLink
+    };
   }
 
-  private async getPayload(reportType: ReportType) {
+  private async getPayload(reportType: ReportType, actorEmail: string) {
     switch (reportType) {
       case "GROUP_MEMBERSHIP_SNAPSHOT":
-        return prisma.groupMembership.findMany({
-          where: { revokedAt: null },
-          include: {
-            user: true,
-            groupMapping: {
-              include: { role: true, sharedDrive: true, restrictedFolder: true }
-            },
-            accessRoleMapping: {
-              include: { accessRole: true, sharedDrive: true, restrictedFolder: true }
+        return {
+          payload: await prisma.groupMembership.findMany({
+            where: { revokedAt: null },
+            include: {
+              user: true,
+              groupMapping: {
+                include: { role: true, sharedDrive: true, restrictedFolder: true }
+              },
+              accessRoleMapping: {
+                include: { accessRole: true, sharedDrive: true, restrictedFolder: true }
+              }
             }
-          }
-        });
+          }),
+          quarterLabel: null,
+          rowCount: 0,
+          itemsCreated: 0,
+          itemsReused: 0,
+          reviewCreated: false,
+          warning: null
+        };
       case "QUARTERLY_ACCESS_REVIEW":
-        return prisma.accessReview.findMany({
-          where: { quarterLabel: getCurrentQuarterLabel() },
-          include: { items: true }
-        });
+        return this.quarterlyAccessReview.ensureCurrentQuarterReview(actorEmail);
       case "RESTRICTED_ACCESS_EXCEPTIONS":
-        return prisma.accessRequest.findMany({
-          where: { restrictedFolderId: { not: null } },
-          include: { user: true, restrictedFolder: true }
-        });
+        return {
+          payload: await prisma.accessRequest.findMany({
+            where: { restrictedFolderId: { not: null } },
+            include: { user: true, restrictedFolder: true }
+          }),
+          quarterLabel: null,
+          rowCount: 0,
+          itemsCreated: 0,
+          itemsReused: 0,
+          reviewCreated: false,
+          warning: null
+        };
       case "PERMISSION_MATRIX":
-        return [
-          ...(await prisma.groupMapping.findMany({
-            include: { role: true, sharedDrive: true, restrictedFolder: true }
-          })),
-          ...(await prisma.accessRoleMapping.findMany({
-            include: { accessRole: true, sharedDrive: true, restrictedFolder: true }
-          }))
-        ];
+        return {
+          payload: [
+            ...(await prisma.groupMapping.findMany({
+              include: { role: true, sharedDrive: true, restrictedFolder: true }
+            })),
+            ...(await prisma.accessRoleMapping.findMany({
+              include: { accessRole: true, sharedDrive: true, restrictedFolder: true }
+            }))
+          ],
+          quarterLabel: null,
+          rowCount: 0,
+          itemsCreated: 0,
+          itemsReused: 0,
+          reviewCreated: false,
+          warning: null
+        };
       case "ACCESS_CHANGE_LOG":
-        return prisma.auditLog.findMany({
-          orderBy: { happenedAt: "desc" },
-          take: 500
-        });
+        return {
+          payload: await prisma.auditLog.findMany({
+            orderBy: { happenedAt: "desc" },
+            take: 500
+          }),
+          quarterLabel: null,
+          rowCount: 0,
+          itemsCreated: 0,
+          itemsReused: 0,
+          reviewCreated: false,
+          warning: null
+        };
       default:
-        return { message: `Unsupported report type ${reportType}` };
+        return {
+          payload: { message: `Unsupported report type ${reportType}` },
+          quarterLabel: null,
+          rowCount: 0,
+          itemsCreated: 0,
+          itemsReused: 0,
+          reviewCreated: false,
+          warning: null
+        };
     }
   }
 
@@ -100,30 +155,4 @@ export class ReportService {
     const folder = await this.drive.ensureChildFolder(rootFolderId, normalizeQuarterFolderName(quarterLabel));
     return folder.id ?? undefined;
   }
-}
-
-function getCurrentQuarterLabel(date = new Date()) {
-  const month = date.getUTCMonth();
-  const quarter = Math.floor(month / 3) + 1;
-  const year = date.getUTCFullYear();
-  return `Q${quarter} ${year}`;
-}
-
-function getQuarterLabelFromPayload(payload: unknown) {
-  if (!Array.isArray(payload) || payload.length === 0) {
-    return getCurrentQuarterLabel();
-  }
-
-  const first = payload[0] as { quarterLabel?: string | null };
-  return first.quarterLabel?.trim() || getCurrentQuarterLabel();
-}
-
-function normalizeQuarterFolderName(quarterLabel: string) {
-  const match = quarterLabel.match(/^Q([1-4])\s+(\d{4})$/i);
-  if (!match) {
-    return quarterLabel.replace(/\s+/g, "_").replace(/^Q/i, "") + "_Reports";
-  }
-
-  const [, quarter, year] = match;
-  return `${year}_Q${quarter}_Reports`;
 }

@@ -718,6 +718,11 @@ th {
   background: rgba(188, 71, 73, 0.08);
 }
 
+.callout.warning {
+  border-color: rgba(184, 115, 51, 0.24);
+  background: rgba(184, 115, 51, 0.1);
+}
+
 .callout p {
   margin: 6px 0 0;
 }
@@ -769,6 +774,18 @@ th {
   border-color: rgba(25, 130, 92, 0.18);
 }
 
+.status-pill.in_progress {
+  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.22);
+}
+
+.status-pill.completed {
+  color: #26654b;
+  background: rgba(25, 130, 92, 0.1);
+  border-color: rgba(25, 130, 92, 0.18);
+}
+
 .status-pill.keep {
   color: #26654b;
   background: rgba(25, 130, 92, 0.1);
@@ -779,6 +796,18 @@ th {
   color: var(--danger);
   background: rgba(160, 58, 45, 0.1);
   border-color: rgba(160, 58, 45, 0.18);
+}
+
+.status-pill.revoke {
+  color: var(--danger);
+  background: rgba(160, 58, 45, 0.1);
+  border-color: rgba(160, 58, 45, 0.18);
+}
+
+.status-pill.needs_update {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.12);
+  border-color: rgba(124, 58, 237, 0.2);
 }
 
 .status-pill.rejected {
@@ -852,6 +881,58 @@ ul.clean {
 ul.clean li {
   padding-bottom: 12px;
   border-bottom: 1px solid rgba(17, 17, 17, 0.035);
+}
+
+.review-filter-grid,
+.review-bulk-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.review-filter-grid label,
+.review-bulk-grid label,
+.review-item-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.review-filter-grid input,
+.review-filter-grid select,
+.review-bulk-grid select,
+.review-bulk-grid textarea,
+.review-item-form select,
+.review-item-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-input);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  color: var(--text);
+  font: inherit;
+}
+
+.review-bulk-notes {
+  grid-column: 1 / -1;
+}
+
+.review-item-form {
+  display: grid;
+  gap: 10px;
+  min-width: 280px;
+}
+
+.review-bulk-form {
+  margin-bottom: 18px;
+}
+
+.review-reset-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 .section-link {

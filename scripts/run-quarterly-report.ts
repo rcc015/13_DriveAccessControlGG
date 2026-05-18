@@ -1,11 +1,22 @@
 import { prisma } from "@/lib/db/prisma";
 import { env } from "@/lib/config/env";
+import { getQuarterInfo } from "@/lib/reports/quarterly-access-review";
 import { ReportService } from "@/lib/services/report-service";
+
+function getNumericMetadataField(metadata: unknown, key: string) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const value = (metadata as Record<string, unknown>)[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
 
 async function main() {
   const force = process.argv.includes("--force");
-  const quarterLabel = getCurrentQuarterLabel();
-  const quarterStart = getQuarterStartUtc();
+  const quarter = getQuarterInfo();
+  const quarterLabel = quarter.label;
+  const quarterStart = quarter.startAt;
 
   const existing = await prisma.generatedReport.findFirst({
     where: {
@@ -15,7 +26,24 @@ async function main() {
     orderBy: { generatedAt: "desc" }
   });
 
-  if (existing && !force) {
+  let latestExistingRowCount: number | null = null;
+
+  if (existing) {
+    const latestGenerationAudit = await prisma.auditLog.findFirst({
+      where: {
+        actionType: "REPORT_GENERATED",
+        metadataJson: {
+          path: ["reportId"],
+          equals: existing.id
+        }
+      },
+      orderBy: { happenedAt: "desc" }
+    });
+
+    latestExistingRowCount = getNumericMetadataField(latestGenerationAudit?.metadataJson, "rowCount");
+  }
+
+  if (existing && !force && latestExistingRowCount !== 0) {
     console.log(
       JSON.stringify(
         {
@@ -24,7 +52,8 @@ async function main() {
           reportId: existing.id,
           fileName: existing.fileName,
           generatedAt: existing.generatedAt.toISOString(),
-          googleDriveUrl: existing.googleDriveUrl
+          googleDriveUrl: existing.googleDriveUrl,
+          rowCount: latestExistingRowCount
         },
         null,
         2
@@ -42,28 +71,19 @@ async function main() {
       {
         status: "generated",
         quarterLabel,
-        reportId: report.id,
-        fileName: report.fileName,
-        googleDriveUrl: report.googleDriveUrl
+        reportId: report.report.id,
+        fileName: report.report.fileName,
+        googleDriveUrl: report.report.googleDriveUrl,
+        rowCount: report.rowCount,
+        itemsCreated: report.itemsCreated,
+        itemsReused: report.itemsReused,
+        warning: report.warning,
+        regeneratedFromEmptyArtifact: existing && !force && latestExistingRowCount === 0
       },
       null,
       2
     )
   );
-}
-
-function getCurrentQuarterLabel(date = new Date()) {
-  const month = date.getUTCMonth();
-  const quarter = Math.floor(month / 3) + 1;
-  const year = date.getUTCFullYear();
-  return `Q${quarter} ${year}`;
-}
-
-function getQuarterStartUtc(date = new Date()) {
-  const year = date.getUTCFullYear();
-  const quarter = Math.floor(date.getUTCMonth() / 3);
-  const startMonth = quarter * 3;
-  return new Date(Date.UTC(year, startMonth, 1, 0, 0, 0, 0));
 }
 
 main()
