@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/lib/config/env";
-import { buildSessionCookie, createSessionFromGoogleProfile, consumeOAuthStateCookie } from "@/lib/auth/session";
+import { buildSessionCookie, consumeOAuthStateCookie, getHomeRouteForRole, resolveAuthorizedSession } from "@/lib/auth/session";
 import { exchangeCodeForProfile } from "@/lib/auth/google-oauth";
 
 export async function GET(request: NextRequest) {
@@ -20,8 +20,15 @@ export async function GET(request: NextRequest) {
 
   try {
     const profile = await exchangeCodeForProfile(code);
-    const response = NextResponse.redirect(new URL("/", env.APP_BASE_URL ?? request.url));
-    const cookie = buildSessionCookie(createSessionFromGoogleProfile(profile));
+    const resolved = await resolveAuthorizedSession(profile);
+
+    if (!resolved.authorized) {
+      const reason = resolved.reason === "DIRECTORY_INACTIVE" ? "inactive_account" : "portal_access_denied";
+      return NextResponse.redirect(new URL(`/auth/error?reason=${reason}`, env.APP_BASE_URL ?? request.url));
+    }
+
+    const response = NextResponse.redirect(new URL(getHomeRouteForRole(resolved.session.appRole), env.APP_BASE_URL ?? request.url));
+    const cookie = buildSessionCookie(resolved.session);
     response.cookies.set(cookie.name, cookie.value, cookie.options);
 
     return response;

@@ -20,10 +20,21 @@ enum AppRoleName {
 
 enum AccessRequestStatus {
   REQUESTED
+  IN_REVIEW
   APPROVED
+  NEEDS_INFO
   REJECTED
+  FULFILLED
+  CANCELLED
   EXPIRED
   REVOKED
+}
+
+enum AccessRequestType {
+  BUSINESS_ROLE
+  SHARED_DRIVE
+  RESTRICTED_FOLDER
+  OTHER
 }
 
 enum ReportType {
@@ -143,6 +154,7 @@ model AccessRole {
   updatedAt             DateTime                 @updatedAt
   assignments           UserAccessRole[]
   mappings              AccessRoleMapping[]
+  accessRequests        AccessRequest[]
 }
 
 model UserAccessRole {
@@ -168,6 +180,7 @@ model SharedDrive {
   accessRoleMappings AccessRoleMapping[]
   folders        RestrictedFolder[]
   folderOwners   FolderOwnership[]
+  accessRequests AccessRequest[]
 }
 
 model GroupMapping {
@@ -242,19 +255,34 @@ model RestrictedFolder {
 model AccessRequest {
   id                 String              @id @default(cuid())
   userId             String
+  requestType        AccessRequestType   @default(RESTRICTED_FOLDER)
   restrictedFolderId String?
+  accessRoleId       String?
+  sharedDriveId      String?
   requestedByEmail   String
+  requesterName      String?
   approverEmail      String?
   approvalReference  String?
+  requestedAccessLevel String?
+  otherTargetText    String?
   justification      String
   status             AccessRequestStatus @default(REQUESTED)
   startDate          DateTime?
+  neededByDate       DateTime?
   endDate            DateTime?
   decidedAt          DateTime?
+  reviewerNotes      String?
+  reviewedAt         DateTime?
+  fulfilledAt        DateTime?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   restrictedFolder   RestrictedFolder?   @relation(fields: [restrictedFolderId], references: [id], onDelete: SetNull)
+  accessRole         AccessRole?         @relation(fields: [accessRoleId], references: [id], onDelete: SetNull)
+  sharedDrive        SharedDrive?        @relation(fields: [sharedDriveId], references: [id], onDelete: SetNull)
+
+  @@index([requestedByEmail])
+  @@index([status])
 }
 
 model AuditLog {

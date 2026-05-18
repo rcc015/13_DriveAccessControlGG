@@ -768,6 +768,12 @@ th {
   border-color: rgba(240, 179, 35, 0.22);
 }
 
+.status-pill.in_review {
+  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.22);
+}
+
 .status-pill.approved {
   color: #26654b;
   background: rgba(25, 130, 92, 0.1);
@@ -810,10 +816,30 @@ th {
   border-color: rgba(124, 58, 237, 0.2);
 }
 
+.status-pill.needs_info {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.12);
+  border-color: rgba(124, 58, 237, 0.2);
+}
+
 .status-pill.rejected {
   color: var(--danger);
   background: rgba(160, 58, 45, 0.1);
   border-color: rgba(160, 58, 45, 0.18);
+}
+
+.status-pill.fulfilled {
+  color: #26654b;
+  background: rgba(25, 130, 92, 0.1);
+  border-color: rgba(25, 130, 92, 0.18);
+}
+
+.status-pill.cancelled,
+.status-pill.revoked,
+.status-pill.expired {
+  color: #55554f;
+  background: rgba(95, 95, 88, 0.08);
+  border-color: rgba(95, 95, 88, 0.18);
 }
 
 .eyebrow-row {
@@ -1267,6 +1293,125 @@ ul.clean li {
   font-size: 0.82rem;
 }
 
+.requester-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(250, 204, 21, 0.12), transparent 28%),
+    linear-gradient(180deg, #fffdf8 0%, #ffffff 28%);
+}
+
+.requester-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  padding: 28px 34px 12px;
+}
+
+.requester-brand h1 {
+  margin: 0;
+  font-size: 2rem;
+  letter-spacing: -0.04em;
+}
+
+.requester-brand p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.requester-session-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-card);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: var(--shadow);
+}
+
+.requester-session-card strong,
+.requester-identity strong {
+  display: block;
+}
+
+.requester-session-card span,
+.requester-identity span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.requester-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid rgba(17, 17, 17, 0.08);
+}
+
+.requester-avatar-large {
+  width: 52px;
+  height: 52px;
+}
+
+.requester-main {
+  width: min(1040px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 8px 0 40px;
+}
+
+.requester-stack {
+  gap: 20px;
+}
+
+.requester-hero {
+  padding-bottom: 26px;
+}
+
+.requester-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.requester-form textarea {
+  min-height: 132px;
+}
+
+.request-justification-cell {
+  min-width: 280px;
+  white-space: normal;
+}
+
+.review-actions {
+  display: grid;
+  gap: 10px;
+  min-width: 280px;
+}
+
+.review-note-form {
+  display: grid;
+  gap: 8px;
+}
+
+.review-note-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-input);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.inline-review-form {
+  display: inline-flex;
+}
+
 @media (max-width: 980px) {
   .shell {
     grid-template-columns: 1fr;
@@ -1287,6 +1432,15 @@ ul.clean li {
     padding: 22px;
     height: auto;
     overflow: visible;
+  }
+
+  .requester-header {
+    padding: 22px 22px 10px;
+    flex-direction: column;
+  }
+
+  .requester-main {
+    width: min(100vw - 20px, 1040px);
   }
 
   .kpi,

@@ -89,8 +89,12 @@ export class ReportService {
       case "RESTRICTED_ACCESS_EXCEPTIONS":
         return {
           payload: await prisma.accessRequest.findMany({
-            where: { restrictedFolderId: { not: null } },
-            include: { user: true, restrictedFolder: true }
+            include: {
+              user: true,
+              restrictedFolder: true,
+              accessRole: true,
+              sharedDrive: true
+            }
           }),
           quarterLabel: null,
           rowCount: 0,

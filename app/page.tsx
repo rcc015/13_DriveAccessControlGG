@@ -1,4 +1,5 @@
 import { requireSession } from "@/lib/auth/session";
+import { getHomeRouteForRole } from "@/lib/auth/access-resolver";
 import { prisma } from "@/lib/db/prisma";
 import { redirect } from "next/navigation";
 import { accessReviewStatusValues } from "@/lib/access-reviews/workflow";
@@ -68,7 +69,7 @@ export default async function HomePage() {
   const session = await requireSession();
 
   if (session.appRole === "REQUESTER") {
-    redirect("/access-requests");
+    redirect(getHomeRouteForRole(session.appRole));
   }
 
   const now = new Date();

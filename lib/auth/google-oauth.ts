@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { env, getAllowedAppEmails } from "@/lib/config/env";
+import { env } from "@/lib/config/env";
 
 export function buildGoogleLoginUrl(state: string) {
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -63,6 +63,7 @@ export async function exchangeCodeForProfile(code: string) {
   const profile = (await profileResponse.json()) as {
     email?: string;
     name?: string | null;
+    picture?: string | null;
     hd?: string;
   };
 
@@ -70,12 +71,7 @@ export async function exchangeCodeForProfile(code: string) {
     throw new Error("Google profile email missing.");
   }
 
-  const allowedEmails = getAllowedAppEmails();
   const normalizedEmail = profile.email.toLowerCase();
-
-  if (allowedEmails.length > 0 && !allowedEmails.includes(normalizedEmail)) {
-    throw new Error(`Email ${normalizedEmail} is not allowed to access the app.`);
-  }
 
   if (env.GOOGLE_HOSTED_DOMAIN && !normalizedEmail.endsWith(`@${env.GOOGLE_HOSTED_DOMAIN}`)) {
     throw new Error(`Email ${normalizedEmail} is not in hosted domain ${env.GOOGLE_HOSTED_DOMAIN}.`);
@@ -83,6 +79,7 @@ export async function exchangeCodeForProfile(code: string) {
 
   return {
     email: normalizedEmail,
-    name: profile.name ?? normalizedEmail.split("@")[0]
+    name: profile.name ?? normalizedEmail.split("@")[0],
+    picture: profile.picture ?? null
   };
 }

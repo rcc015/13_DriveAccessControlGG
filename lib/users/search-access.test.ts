@@ -13,14 +13,14 @@ test("Super Admin can access user search endpoint", () => {
   );
 });
 
-test("request portal users can access user search endpoint when the workflow needs it", () => {
+test("request portal users cannot access managed user search endpoint", () => {
   assert.equal(
     canSearchManagedUsers({
       email: "guest@conceivable.life",
       displayName: "Guest User",
       appRole: "REQUESTER"
     }),
-    true
+    false
   );
 });
 

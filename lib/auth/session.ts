@@ -1,7 +1,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { env, getAdminRoleOverrides, getAllowedAdminEmails, getAllowedAppEmails } from "@/lib/config/env";
+import { prisma } from "@/lib/db/prisma";
+import { env, getAdminRoleOverrides, getAllowedAdminEmails } from "@/lib/config/env";
+import { getHomeRouteForRole, resolveAccessForIdentity } from "@/lib/auth/access-resolver";
 import type { AppRoleName } from "@/types/domain";
 
 const SESSION_COOKIE_NAME = "drive-access-console-session";
@@ -11,6 +13,7 @@ export interface AppSession {
   email: string;
   displayName: string;
   appRole: AppRoleName;
+  avatarUrl?: string | null;
 }
 
 interface SignedSessionPayload extends AppSession {
@@ -65,13 +68,21 @@ function getRoleForEmail(email: string): AppRoleName {
   return "REQUESTER";
 }
 
+function getDeniedReasonQuery(reason: string) {
+  switch (reason) {
+    case "NOT_IN_ALLOWED_DOMAIN":
+      return "domain_not_allowed";
+    case "DIRECTORY_INACTIVE":
+      return "inactive_account";
+    case "NOT_SYNCED_ACTIVE_EMPLOYEE":
+      return "portal_access_denied";
+    default:
+      return "portal_access_denied";
+  }
+}
+
 function isAllowedEmail(email: string) {
   const normalized = email.toLowerCase();
-  const explicitlyAllowed = getAllowedAppEmails();
-
-  if (explicitlyAllowed.length > 0) {
-    return explicitlyAllowed.includes(normalized);
-  }
 
   if (env.GOOGLE_HOSTED_DOMAIN) {
     return normalized.endsWith(`@${env.GOOGLE_HOSTED_DOMAIN.toLowerCase()}`);
@@ -95,59 +106,27 @@ function buildCookieOptions(maxAge: number) {
 }
 
 export async function getSession(): Promise<AppSession | null> {
-  const allowedAdminEmails = getAllowedAdminEmails();
+  const state = await getSessionState();
 
-  if (env.AUTH_MODE === "mock") {
-    const email = env.MOCK_USER_EMAIL ?? allowedAdminEmails[0] ?? "admin@example.com";
-    const isAllowed = isAllowedEmail(email);
-
-    if (!isAllowed) {
-      throw new Error(`Mock user ${email} is not allowed for this app session.`);
-    }
-
-    return {
-      email,
-      displayName: env.MOCK_USER_NAME ?? "Internal Admin",
-      appRole: env.MOCK_USER_ROLE ?? getRoleForEmail(email)
-    };
-  }
-
-  const cookieStore = await cookies();
-  const rawSession = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-
-  if (!rawSession) {
+  if (state.kind !== "authenticated") {
     return null;
   }
 
-  const parsed = parseSignedValue(rawSession);
-
-  if (!parsed) {
-    return null;
-  }
-
-  const payload = JSON.parse(parsed) as SignedSessionPayload;
-  const isExpired = payload.exp < Date.now();
-  const isAllowed = isAllowedEmail(payload.email);
-
-  if (isExpired || !isAllowed) {
-    return null;
-  }
-
-  return {
-    email: payload.email,
-    displayName: payload.displayName,
-    appRole: payload.appRole
-  };
+  return state.session;
 }
 
 export async function requireSession(): Promise<AppSession> {
-  const session = await getSession();
+  const state = await getSessionState();
 
-  if (!session) {
+  if (state.kind === "anonymous") {
     redirect("/auth/login");
   }
 
-  return session;
+  if (state.kind === "denied") {
+    redirect(`/auth/error?reason=${getDeniedReasonQuery(state.reason)}`);
+  }
+
+  return state.session;
 }
 
 export async function createSessionCookie(session: AppSession) {
@@ -179,11 +158,57 @@ export async function consumeOAuthStateCookie() {
   return parseSignedValue(value);
 }
 
-export function createSessionFromGoogleProfile(profile: { email: string; name?: string | null }) {
+export async function resolveAuthorizedSession(profile: { email: string; name?: string | null; picture?: string | null }) {
+  const normalizedEmail = profile.email.toLowerCase();
+  const directoryUser = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+    include: {
+      roleAssignments: {
+        include: {
+          role: true
+        }
+      }
+    }
+  });
+
+  const explicitRole = getRoleForEmail(normalizedEmail);
+  const resolution = resolveAccessForIdentity({
+    email: normalizedEmail,
+    hostedDomain: env.GOOGLE_HOSTED_DOMAIN,
+    explicitRole: explicitRole === "REQUESTER" ? null : explicitRole,
+    assignedRoles: directoryUser?.roleAssignments.map((assignment) => assignment.role.name as AppRoleName) ?? [],
+    directoryUser: directoryUser
+      ? {
+          isActive: directoryUser.isActive,
+          directoryStatus: directoryUser.directoryStatus
+        }
+      : null
+  });
+
+  if (!resolution.authorized || !resolution.appRole) {
+    return {
+      authorized: false as const,
+      reason: resolution.reason
+    };
+  }
+
+  return {
+    authorized: true as const,
+    session: {
+      email: normalizedEmail,
+      displayName: profile.name?.trim() || directoryUser?.displayName || normalizedEmail.split("@")[0],
+      appRole: resolution.appRole,
+      avatarUrl: profile.picture?.trim() || null
+    } satisfies AppSession
+  };
+}
+
+export function createSessionFromGoogleProfile(profile: { email: string; name?: string | null; picture?: string | null }) {
   return {
     email: profile.email.toLowerCase(),
     displayName: profile.name?.trim() || profile.email.split("@")[0],
-    appRole: getRoleForEmail(profile.email)
+    appRole: getRoleForEmail(profile.email),
+    avatarUrl: profile.picture?.trim() || null
   } satisfies AppSession;
 }
 
@@ -207,3 +232,95 @@ export function buildOAuthStateCookie(state: string) {
     options: buildCookieOptions(60 * 10)
   };
 }
+
+export async function getSessionState(): Promise<
+  | { kind: "anonymous" }
+  | { kind: "denied"; reason: string }
+  | { kind: "authenticated"; session: AppSession }
+> {
+  const allowedAdminEmails = getAllowedAdminEmails();
+
+  if (env.AUTH_MODE === "mock") {
+    const email = env.MOCK_USER_EMAIL ?? allowedAdminEmails[0] ?? "admin@example.com";
+    const isAllowed = isAllowedEmail(email);
+
+    if (!isAllowed) {
+      throw new Error(`Mock user ${email} is not allowed for this app session.`);
+    }
+
+    return {
+      kind: "authenticated",
+      session: {
+        email,
+        displayName: env.MOCK_USER_NAME ?? "Internal Admin",
+        appRole: env.MOCK_USER_ROLE ?? getRoleForEmail(email),
+        avatarUrl: null
+      }
+    };
+  }
+
+  const cookieStore = await cookies();
+  const rawSession = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
+  if (!rawSession) {
+    return { kind: "anonymous" };
+  }
+
+  const parsed = parseSignedValue(rawSession);
+
+  if (!parsed) {
+    return { kind: "anonymous" };
+  }
+
+  const payload = JSON.parse(parsed) as SignedSessionPayload;
+  const isExpired = payload.exp < Date.now();
+  const isAllowed = isAllowedEmail(payload.email);
+
+  if (isExpired || !isAllowed) {
+    return { kind: "anonymous" };
+  }
+
+  const directoryUser = await prisma.user.findUnique({
+    where: { email: payload.email.toLowerCase() },
+    include: {
+      roleAssignments: {
+        include: {
+          role: true
+        }
+      }
+    }
+  });
+
+  const explicitRole = getRoleForEmail(payload.email);
+  const resolution = resolveAccessForIdentity({
+    email: payload.email,
+    hostedDomain: env.GOOGLE_HOSTED_DOMAIN,
+    explicitRole: explicitRole === "REQUESTER" ? null : explicitRole,
+    assignedRoles: directoryUser?.roleAssignments.map((assignment) => assignment.role.name as AppRoleName) ?? [],
+    directoryUser: directoryUser
+      ? {
+          isActive: directoryUser.isActive,
+          directoryStatus: directoryUser.directoryStatus
+        }
+      : null
+  });
+
+  if (!resolution.authorized || !resolution.appRole) {
+    return {
+      kind: "denied",
+      reason: resolution.reason
+    };
+  }
+
+  return {
+    kind: "authenticated",
+    session: {
+      email: payload.email.toLowerCase(),
+      displayName: payload.displayName,
+      appRole: resolution.appRole,
+      avatarUrl: payload.avatarUrl ?? null
+    }
+  };
+}
+
+export { getHomeRouteForRole };

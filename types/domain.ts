@@ -11,10 +11,16 @@ export type AppRoleName =
 
 export type AccessRequestStatus =
   | "REQUESTED"
+  | "IN_REVIEW"
   | "APPROVED"
+  | "NEEDS_INFO"
   | "REJECTED"
+  | "FULFILLED"
+  | "CANCELLED"
   | "EXPIRED"
   | "REVOKED";
+
+export type AccessRequestType = "BUSINESS_ROLE" | "SHARED_DRIVE" | "RESTRICTED_FOLDER" | "OTHER";
 
 export type ReportType =
   | "GROUP_MEMBERSHIP_SNAPSHOT"

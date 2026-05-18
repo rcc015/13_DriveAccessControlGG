@@ -1,159 +1,133 @@
 import { AccessDenied } from "@/components/dashboard/access-denied";
-import { UserAutocomplete } from "@/components/dashboard/user-autocomplete";
+import { redirect } from "next/navigation";
 import {
-  approveRestrictedAccessRequest,
-  createRestrictedAccessRequest,
-  rejectRestrictedAccessRequest
+  approveAccessRequest,
+  markAccessRequestInReview,
+  rejectAccessRequest,
+  requestMoreInfoForAccessRequest
 } from "@/app/(dashboard)/access-requests/actions";
-import { adminAssignmentRoles, hasAnyRole, requestPortalRoles } from "@/lib/auth/authorization";
+import { adminAndReadRoles, hasAnyRole } from "@/lib/auth/authorization";
 import { requireSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 
+function formatRequestType(requestType: string) {
+  switch (requestType) {
+    case "BUSINESS_ROLE":
+      return "Business role";
+    case "SHARED_DRIVE":
+      return "Shared Drive";
+    case "RESTRICTED_FOLDER":
+      return "Restricted folder";
+    case "OTHER":
+      return "Other";
+    default:
+      return requestType.replaceAll("_", " ");
+  }
+}
+
+function formatTarget(request: {
+  accessRole: { displayName: string } | null;
+  sharedDrive: { name: string } | null;
+  restrictedFolder: { path: string } | null;
+  otherTargetText: string | null;
+}) {
+  return (
+    request.accessRole?.displayName ??
+    request.sharedDrive?.name ??
+    request.restrictedFolder?.path ??
+    request.otherTargetText ??
+    "Unknown target"
+  );
+}
+
 export default async function AccessRequestsPage() {
   const session = await requireSession();
-  const isAdmin = hasAnyRole(session, adminAssignmentRoles);
 
-  if (!hasAnyRole(session, requestPortalRoles)) {
+  if (session.appRole === "REQUESTER") {
+    redirect("/request-access");
+  }
+
+  if (!hasAnyRole(session, adminAndReadRoles)) {
     return (
       <AccessDenied
         title="Access Requests restricted"
-        description="Your current app role cannot create or review access requests."
+        description="Only admin, reviewer, and auditor roles can review access requests."
       />
     );
   }
 
-  const [requests, restrictedFolders] = await Promise.all([
-    prisma.accessRequest.findMany({
-      where: isAdmin
-        ? undefined
-        : {
-            requestedByEmail: session.email
-          },
-      include: {
-        user: true,
-        restrictedFolder: true
+  const canReview = session.appRole !== "READ_ONLY_AUDITOR";
+  const requests = await prisma.accessRequest.findMany({
+    include: {
+      user: true,
+      accessRole: {
+        select: {
+          displayName: true
+        }
       },
-      orderBy: [{ createdAt: "desc" }]
-    }),
-    prisma.restrictedFolder.findMany({
-      orderBy: [{ path: "asc" }]
-    })
-  ]);
+      sharedDrive: {
+        select: {
+          name: true
+        }
+      },
+      restrictedFolder: {
+        select: {
+          path: true
+        }
+      }
+    },
+    orderBy: [{ createdAt: "desc" }]
+  });
 
-  const requestedCount = requests.filter((request) => request.status === "REQUESTED").length;
-  const approvedCount = requests.filter((request) => request.status === "APPROVED").length;
-  const rejectedCount = requests.filter((request) => request.status === "REJECTED").length;
+  const openCount = requests.filter((request) => ["REQUESTED", "IN_REVIEW", "NEEDS_INFO"].includes(request.status)).length;
 
   return (
     <div className="stack">
       <section className="hero-card">
         <div className="eyebrow-row">
           <div className="eyebrow">Module 03</div>
-          <span className="pill danger">{isAdmin ? "Exception workflow" : "Request portal"}</span>
+          <span className="pill danger">Admin review</span>
         </div>
-        <h2>Restricted access workflow</h2>
+        <h2>Access requests</h2>
         <p>
-          {isAdmin
-            ? "The only place where special-case access can be requested. Every request must carry justification, approver identity, dates, and a reviewable audit trail."
-            : "Request restricted-folder exceptions here. Requests are reviewed by an administrator before any access is granted."}
+          Review end-user requests for business roles, Shared Drives, and restricted folders without
+          bypassing the existing RBAC and reconcile controls.
         </p>
       </section>
 
       <section className="stat-strip">
         <article className="panel stat-card">
-          <span>Open requests</span>
-          <strong>{requestedCount}</strong>
+          <span>Total requests</span>
+          <strong>{requests.length}</strong>
         </article>
         <article className="panel stat-card">
-          <span>Approved exceptions</span>
-          <strong>{approvedCount}</strong>
+          <span>Open review items</span>
+          <strong>{openCount}</strong>
         </article>
         <article className="panel stat-card">
-          <span>Rejected requests</span>
-          <strong>{rejectedCount}</strong>
+          <span>Read mode</span>
+          <strong>{canReview ? "Review enabled" : "Auditor"}</strong>
         </article>
       </section>
 
       <section className="panel">
         <div className="section-head">
           <div>
-            <h3>{isAdmin ? "Create restricted access request" : "Request restricted folder exception"}</h3>
-            <p className="muted">
-              {isAdmin
-                ? "Use this only for approved exception paths."
-                : "Use this only when standard role-based access does not cover the work you need to perform."}
-            </p>
+            <h3>Review queue</h3>
+            <p className="muted">Approval changes request status only. It does not silently apply Google access.</p>
           </div>
-          <span className="pill">{isAdmin ? "Create request" : "Submit request"}</span>
-        </div>
-        <form action={createRestrictedAccessRequest} className="form-grid">
-          <UserAutocomplete
-            label="Target user"
-            name="targetUserEmail"
-            displayNameName="targetUserDisplayName"
-            selectionIdName="selectedUserId"
-            placeholder="Search by name or email"
-            defaultEmail={session.email}
-            defaultDisplayName={session.displayName}
-            required
-          />
-          <label className="field">
-            <span>Restricted folder</span>
-            <select name="restrictedFolderId" required defaultValue="">
-              <option value="" disabled>
-                Select restricted folder
-              </option>
-              {restrictedFolders.map((folder) => (
-                <option key={folder.id} value={folder.id}>
-                  {folder.path}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Start date</span>
-            <input type="date" name="startDate" />
-          </label>
-          <label className="field">
-            <span>End date</span>
-            <input type="date" name="endDate" />
-          </label>
-          <label className="field field-full">
-            <span>Justification</span>
-            <textarea
-              name="justification"
-              rows={4}
-              placeholder="Why is this exception needed, and for how long?"
-              required
-            />
-          </label>
-          <div className="form-actions">
-            <button type="submit">{isAdmin ? "Create request" : "Submit request"}</button>
-          </div>
-        </form>
-      </section>
-
-      <section className="panel">
-        <div className="section-head">
-          <div>
-            <h3>{isAdmin ? "Restricted folder requests" : "My restricted folder requests"}</h3>
-            <p className="muted">
-              {isAdmin
-                ? "Exception-only path, never the default operating model."
-                : "These are the requests you have submitted for review."}
-            </p>
-          </div>
-          <span className="pill warn">{isAdmin ? "Reviewable evidence" : "Requester view"}</span>
+          <span className="pill warn">{openCount} open</span>
         </div>
         <table className="table-tight">
           <thead>
             <tr>
-              <th>Requested at</th>
-              <th>User</th>
-              <th>Restricted path</th>
+              <th>Submitted</th>
+              <th>Requester</th>
+              <th>Type</th>
+              <th>Requested access</th>
+              <th>Requester justification</th>
               <th>Status</th>
-              <th>Approval</th>
-              <th>Actions</th>
+              <th>Review</th>
             </tr>
           </thead>
           <tbody>
@@ -161,45 +135,40 @@ export default async function AccessRequestsPage() {
               <tr key={request.id}>
                 <td>{request.createdAt.toISOString().slice(0, 10)}</td>
                 <td>
-                  <strong>{request.user.displayName}</strong>
-                  <div className="muted">{request.user.email}</div>
+                  <strong>{request.requesterName ?? request.user.displayName}</strong>
+                  <div className="muted">{request.requestedByEmail}</div>
                 </td>
-                <td>{request.restrictedFolder?.path ?? "Unknown restricted folder"}</td>
+                <td>{formatRequestType(request.requestType)}</td>
                 <td>
-                  <span className={`status-pill ${request.status.toLowerCase()}`}>
-                    {request.status}
-                  </span>
+                  <strong>{formatTarget(request)}</strong>
+                  {request.requestedAccessLevel ? <div className="muted">{request.requestedAccessLevel}</div> : null}
                 </td>
+                <td className="request-justification-cell">{request.justification}</td>
                 <td>
-                  {request.approverEmail ? (
-                    <>
-                      <strong>{request.approverEmail}</strong>
-                      <div className="muted">{request.approvalReference ?? "No reference"}</div>
-                    </>
-                  ) : (
-                    <span className="muted">Pending decision</span>
-                  )}
+                  <span className={`status-pill ${request.status.toLowerCase()}`}>{request.status}</span>
                 </td>
                 <td>
-                  {isAdmin && request.status === "REQUESTED" ? (
-                    <div className="inline-actions">
-                      <form action={approveRestrictedAccessRequest}>
+                  {canReview ? (
+                    <form className="review-actions">
                         <input type="hidden" name="requestId" value={request.id} />
-                        <button type="submit" className="button-secondary">
+                        <textarea name="reviewerNotes" rows={2} placeholder="Reviewer notes" defaultValue={request.reviewerNotes ?? ""} />
+                        <div className="inline-actions">
+                          <button type="submit" formAction={markAccessRequestInReview} className="button-secondary">
+                            Mark in review
+                          </button>
+                          <button type="submit" formAction={requestMoreInfoForAccessRequest} className="button-ghost">
+                            Needs info
+                          </button>
+                          <button type="submit" formAction={approveAccessRequest} className="button-secondary">
                           Approve
-                        </button>
-                      </form>
-                      <form action={rejectRestrictedAccessRequest}>
-                        <input type="hidden" name="requestId" value={request.id} />
-                        <button type="submit" className="button-ghost">
-                          Reject
-                        </button>
-                      </form>
-                    </div>
-                  ) : isAdmin ? (
-                    <span className="muted">Closed</span>
+                          </button>
+                          <button type="submit" formAction={rejectAccessRequest} className="button-ghost">
+                            Reject
+                          </button>
+                        </div>
+                    </form>
                   ) : (
-                    <span className="muted">Awaiting admin review</span>
+                    <span className="muted">{request.reviewerNotes ?? "Read-only review"}</span>
                   )}
                 </td>
               </tr>

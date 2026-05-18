@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { DashboardShell } from "@/components/dashboard/shell";
+import { RequesterShell } from "@/components/requester/shell";
+import { adminAndReadRoles } from "@/lib/auth/authorization";
 import { getSession } from "@/lib/auth/session";
 import { env } from "@/lib/config/env";
 
@@ -15,14 +17,21 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await getSession();
+  const useAdminShell = session ? adminAndReadRoles.includes(session.appRole) : false;
 
   return (
     <html lang="en">
       <body>
         {session ? (
-          <DashboardShell session={session} authMode={env.AUTH_MODE}>
-            {children}
-          </DashboardShell>
+          useAdminShell ? (
+            <DashboardShell session={session} authMode={env.AUTH_MODE}>
+              {children}
+            </DashboardShell>
+          ) : (
+            <RequesterShell session={session} authMode={env.AUTH_MODE}>
+              {children}
+            </RequesterShell>
+          )
         ) : (
           children
         )}

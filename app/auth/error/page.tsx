@@ -8,7 +8,9 @@ const errorMessages: Record<string, string> = {
   missing_code_or_state: "Google returned without the OAuth code/state required to finish login.",
   invalid_oauth_state: "The OAuth state cookie was missing or did not match the callback request.",
   token_exchange_failed: "The app could not exchange the Google authorization code for a session.",
-  domain_not_allowed: "The selected Google account is not allowed to access this app."
+  domain_not_allowed: "The selected Google account is not allowed to access this app.",
+  inactive_account: "Your account is currently inactive or suspended in the employee directory.",
+  portal_access_denied: "Your account is not currently authorized to use the Drive Access Console request portal. Contact an access administrator."
 };
 
 export default async function AuthErrorPage({ searchParams }: AuthErrorPageProps) {
